@@ -6,4 +6,4 @@ set(CMAKE_CXX_STANDARD 23)
 
 add_definitions(-DDEBUG)
 
-add_executable(cmm src/main.cpp src/parser.cpp)
+add_executable(cmm src/main.cpp)
