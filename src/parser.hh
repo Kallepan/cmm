@@ -21,7 +21,7 @@ class Parser {
         : m_tokens(std::move(tokens)) {}
 
     std::optional<node::Expr> parse_expr() {
-        if (peak().has_value() && peak().value().type == TokenType::INT_LIT) {
+        if (peek().has_value() && peek().value().type == TokenType::INT_LIT) {
             return node::Expr{consume()};
         }
 
@@ -31,8 +31,8 @@ class Parser {
     std::optional<node::Exit> parse() {
         std::optional<node::Exit> exit_node;
 
-        while (peak().has_value()) {
-            if (peak().value().type == TokenType::EXIT) {
+        while (peek().has_value()) {
+            if (peek().value().type == TokenType::EXIT) {
                 consume();
                 if (auto node_expr = parse_expr()) {
                     exit_node = node::Exit{node_expr.value()};
@@ -43,8 +43,8 @@ class Parser {
                     return std::nullopt;
                 }
 
-                if (peak().has_value() ||
-                    peak().value().type == TokenType::END_OF_LINE) {
+                if (peek().has_value() ||
+                    peek().value().type == TokenType::END_OF_LINE) {
                     consume();
 
                 } else {
@@ -60,7 +60,7 @@ class Parser {
     }
 
    private:
-    [[nodiscard]] inline std::optional<Token> peak(size_t ahead = 0) const {
+    [[nodiscard]] inline std::optional<Token> peek(size_t ahead = 0) const {
         if (m_index + ahead >= m_tokens.size()) {
             return std::nullopt;
         }

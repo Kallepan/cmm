@@ -21,15 +21,15 @@ class Tokenizer {
         std::string token_buff;
 
         // Continue looking for tokens until the end of the source
-        while (peak().has_value()) {
+        while (peek().has_value()) {
             // Handle Newline
-            if (peak().value() == '\n') {
+            if (peek().value() == '\n') {
                 m_line_number++;
                 consume();
                 continue;
-            } else if (std::isalpha(peak().value())) {
+            } else if (std::isalpha(peek().value())) {
                 token_buff.push_back(consume());
-                while (peak().has_value() && std::isalnum(peak().value())) {
+                while (peek().has_value() && std::isalnum(peek().value())) {
                     token_buff.push_back(consume());
                 }
 
@@ -44,9 +44,9 @@ class Tokenizer {
                     return {};
                 }
 
-            } else if (std::isdigit(peak().value())) {
+            } else if (std::isdigit(peek().value())) {
                 token_buff.push_back(consume());
-                while (peak().has_value() && std::isdigit(peak().value())) {
+                while (peek().has_value() && std::isdigit(peek().value())) {
                     token_buff.push_back(consume());
                 }
 
@@ -61,15 +61,15 @@ class Tokenizer {
 
                     return {};
                 }
-            } else if (peak().value() == ';') {
+            } else if (peek().value() == ';') {
                 consume();
                 tokens.push_back({TokenType::END_OF_LINE, ";"});
                 continue;
-            } else if (std::isspace(peak().value())) {
+            } else if (std::isspace(peek().value())) {
                 consume();
                 continue;
             } else {
-                std::cerr << "Syntax error: " << peak().value()
+                std::cerr << "Syntax error: " << peek().value()
                           << " at line: " << m_line_number << std::endl;
                 return {};
             }
@@ -87,7 +87,7 @@ class Tokenizer {
     }
 
    private:
-    [[nodiscard]] inline std::optional<char> peak(size_t ahead = 0) const {
+    [[nodiscard]] inline std::optional<char> peek(size_t ahead = 0) const {
         if (m_index + ahead >= m_src.size()) {
             return std::nullopt;
         }
