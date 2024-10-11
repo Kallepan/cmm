@@ -22,9 +22,16 @@ int main(int argc, char *argv[]) {
     Tokenizer tokenizer(std::move(contents));
     std::vector<Token> tokens = tokenizer.tokenize();
 
+    Parser parser(std::move(tokens));
+    std::optional<node::Exit> tree = parser.parse();
+    if (!tree.has_value()) {
+        return EXIT_FAILURE;
+    }
+
+    Generator generator(tree.value());
     {
         std::fstream output("_test/test.asm", std::ios::out);
-        output << tokens_to_asm(tokens);
+        output << generator.generate();
     }
 
     return EXIT_SUCCESS;

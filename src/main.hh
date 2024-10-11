@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "generation.hh"
+#include "parser.hh"
 #include "token_type.hh"
 #include "tokenization.hh"
-
-std::string tokens_to_asm(const std::vector<Token>& tokens);

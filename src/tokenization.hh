@@ -52,7 +52,7 @@ class Tokenizer {
 
                 // Handle token
                 if (std::isdigit(token_buff[0])) {
-                    tokens.push_back({TokenType::INTEGER_LITERAL, token_buff});
+                    tokens.push_back({TokenType::INT_LIT, token_buff});
                     token_buff.clear();
                     continue;
                 } else {
@@ -95,7 +95,7 @@ class Tokenizer {
         return m_src[m_index + ahead];
     }
 
-    char consume() { return m_src.at(m_index++); }
+    inline char consume() { return m_src.at(m_index++); }
 
     const std::string m_src;
     int m_index{0};
