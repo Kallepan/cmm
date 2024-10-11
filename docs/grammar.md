@@ -5,6 +5,10 @@ $$
     \text{exit}([\text{expr}]); \\
     \text{let ident} = [\text{expr}]; \\
 \end{cases} \\
-[\text{expr}] &\to \text{int\_literal}
+[\text{expr}] &\to 
+\begin{cases}
+\text{int\_literal} \\
+\text{ident} \\
+\end{cases}
 \end{align}
 $$
