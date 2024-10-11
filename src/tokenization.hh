@@ -87,12 +87,12 @@ class Tokenizer {
     }
 
    private:
-    [[nodiscard]] inline std::optional<char> peek(size_t ahead = 0) const {
-        if (m_index + ahead >= m_src.size()) {
+    [[nodiscard]] inline std::optional<char> peek(size_t offset = 0) const {
+        if (m_index + offset >= m_src.size()) {
             return std::nullopt;
         }
 
-        return m_src[m_index + ahead];
+        return m_src[m_index + offset];
     }
 
     inline char consume() { return m_src.at(m_index++); }
