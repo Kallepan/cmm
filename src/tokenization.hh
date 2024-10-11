@@ -38,11 +38,15 @@ class Tokenizer {
                     tokens.push_back({TokenType::EXIT, token_buff});
                     token_buff.clear();
                     continue;
-                } else {
-                    std::cerr << "Syntax error: " << token_buff
-                              << " at line: " << m_line_number << std::endl;
-                    return {};
+                } else if (token_buff == "let") {
+                    tokens.push_back({TokenType::LET, token_buff});
+                    token_buff.clear();
+                    continue;
                 }
+
+                tokens.push_back({TokenType::IDENT, token_buff});
+                token_buff.clear();
+                continue;
 
             } else if (std::isdigit(peek().value())) {
                 token_buff.push_back(consume());
@@ -57,10 +61,22 @@ class Tokenizer {
                     continue;
                 } else {
                     std::cerr << "Syntax error: " << token_buff
-                              << " at line: " << m_line_number << std::endl;
+                              << " at line: " << m_line_number << "\n";
 
-                    return {};
+                    exit(EXIT_FAILURE);
                 }
+            } else if (peek().value() == '(') {
+                consume();
+                tokens.push_back({TokenType::OPEN_PAREN, "("});
+                continue;
+            } else if (peek().value() == ')') {
+                consume();
+                tokens.push_back({TokenType::CLOSE_PAREN, ")"});
+                continue;
+            } else if (peek().value() == '=') {
+                consume();
+                tokens.push_back({TokenType::EQ, "="});
+                continue;
             } else if (peek().value() == ';') {
                 consume();
                 tokens.push_back({TokenType::END_OF_LINE, ";"});
@@ -70,15 +86,15 @@ class Tokenizer {
                 continue;
             } else {
                 std::cerr << "Syntax error: " << peek().value()
-                          << " at line: " << m_line_number << std::endl;
-                return {};
+                          << " at line: " << m_line_number << "\n";
+                exit(EXIT_FAILURE);
             }
         }
 
 #ifdef DEBUG
         for (const auto& token : tokens) {
             std::cout << "Token: " << token.type << ", Value: " << token.value
-                      << std::endl;
+                      << "\n";
         }
 #endif
         m_index = 0;
