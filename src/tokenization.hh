@@ -87,7 +87,7 @@ class Tokenizer {
     }
 
    private:
-    [[nodiscard]] std::optional<char> peak(int ahead = 0) const {
+    [[nodiscard]] inline std::optional<char> peak(int ahead = 0) const {
         if (m_index + ahead >= m_src.size()) {
             return std::nullopt;
         }
@@ -95,7 +95,7 @@ class Tokenizer {
         return m_src[m_index + ahead];
     }
 
-    char consume() { return m_src.at(m_index++); }
+    inline char consume() { return m_src.at(m_index++); }
 
     const std::string m_src;
     int m_index{0};
