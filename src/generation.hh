@@ -21,10 +21,8 @@ class Generator {
             }
 
             void operator()(const node::ExprIdent& expr_ident) const {
-                if (std::find_if(gen->m_vars.begin(), gen->m_vars.end(),
-                                 [&expr_ident](const auto& var) {
-                                     return var.first == expr_ident.ident.value;
-                                 }) == gen->m_vars.end()) {
+                if (gen->m_vars.find(expr_ident.ident.value) ==
+                    gen->m_vars.end()) {
                     std::cerr
                         << "Variable not declared: " << expr_ident.ident.value
                         << "\n";
