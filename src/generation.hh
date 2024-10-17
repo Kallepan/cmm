@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <unordered_map>
 #include <utility>
 
@@ -10,28 +11,28 @@ class Generator {
    public:
     inline explicit Generator(node::Prog prog) : m_prog(std::move(prog)) {}
 
-    void gen_expr(const node::Expr& expr) {
-        struct ExprVisitor {
+    void gen_term(const node::Term* term) {
+        struct TermVisitor {
             Generator* gen;
-
-            void operator()(const node::ExprIntLit& expr_int_lit) const {
-                gen->m_output << "    mov rax, " << expr_int_lit.int_lit.value
+            void operator()(const node::TermIntLit* term_int_lit) const {
+                gen->m_output << "    mov rax, " << term_int_lit->int_lit.value
                               << "\n";
                 gen->push("rax");
             }
 
-            void operator()(const node::ExprIdent& expr_ident) const {
+            void operator()(const node::TermIdent* term_ident) const {
                 if (std::find_if(gen->m_vars.begin(), gen->m_vars.end(),
-                                 [&expr_ident](const auto& var) {
-                                     return var.first == expr_ident.ident.value;
+                                 [&term_ident](const auto& var) {
+                                     return var.first ==
+                                            term_ident->ident.value;
                                  }) == gen->m_vars.end()) {
                     std::cerr
-                        << "Variable not declared: " << expr_ident.ident.value
+                        << "Variable not declared: " << term_ident->ident.value
                         << "\n";
                     exit(EXIT_FAILURE);
                 }
 
-                const auto& var = gen->m_vars.at(expr_ident.ident.value);
+                const auto& var = gen->m_vars.at(term_ident->ident.value);
                 gen->push("QWORD [rsp + " +
                           std::to_string(
                               (gen->m_stack_pointer - var.stack_loc - 1) * 8) +
@@ -39,35 +40,50 @@ class Generator {
             }
         };
 
-        std::visit(ExprVisitor{this}, expr.var);
+        std::visit(TermVisitor{this}, term->var);
     }
 
-    void gen_stmt(const node::Stmt& stmt) {
+    void gen_expr(const node::Expr* expr) {
+        struct ExprVisitor {
+            Generator* gen;
+
+            void operator()(const node::Term* term) const {
+                gen->gen_term(term);
+            }
+
+            void operator()(const node::BinExpr* bin_expr) const {
+                assert(false);  // TODO
+            }
+        };
+
+        std::visit(ExprVisitor{this}, expr->var);
+    }
+
+    void gen_stmt(const node::Stmt* stmt) {
         struct StmtVisitor {
             Generator* gen;
 
-            void operator()(const node::StmtExit& stmt_exit) const {
-                gen->gen_expr(stmt_exit.expr);
+            void operator()(const node::StmtExit* stmt_exit) const {
+                gen->gen_expr(stmt_exit->expr);
                 gen->m_output << "    mov rax, 60\n";
                 gen->pop("rdi");
                 gen->m_output << "    syscall\n";
             }
 
-            void operator()(const node::StmtLet& stmt_let) const {
-                if (gen->m_vars.contains(stmt_let.ident.value)) {
-                    std::cerr
-                        << "Variable already declared: " << stmt_let.ident.value
-                        << "\n";
+            void operator()(const node::StmtLet* stmt_let) const {
+                if (gen->m_vars.contains(stmt_let->ident.value)) {
+                    std::cerr << "Variable already declared: "
+                              << stmt_let->ident.value << "\n";
                     exit(EXIT_FAILURE);
                 }
 
                 gen->m_vars.insert(
-                    {stmt_let.ident.value, Var{gen->m_stack_pointer}});
-                gen->gen_expr(stmt_let.expr);
+                    {stmt_let->ident.value, Var{gen->m_stack_pointer}});
+                gen->gen_expr(stmt_let->expr);
             }
         };
 
-        std::visit(StmtVisitor{this}, stmt.var);
+        std::visit(StmtVisitor{this}, stmt->var);
     }
 
     [[nodiscard]] std::string gen_prog() {

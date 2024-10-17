@@ -77,6 +77,14 @@ class Tokenizer {
                 consume();
                 tokens.push_back({TokenType::EQ, "="});
                 continue;
+            } else if (peek().value() == '+') {
+                consume();
+                tokens.push_back({TokenType::PLUS, "+"});
+                continue;
+            } else if (peek().value() == '*') {
+                consume();
+                tokens.push_back({TokenType::MULT, "*"});
+                continue;
             } else if (peek().value() == ';') {
                 consume();
                 tokens.push_back({TokenType::END_OF_LINE, ";"});
