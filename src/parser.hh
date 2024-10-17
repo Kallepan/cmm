@@ -65,29 +65,6 @@ class Parser {
           m_allocator(1024 * 1024 * 4)  // 4 mb
     {}
 
-    std::optional<node::BinExpr*> parse_bin_expr() {
-        if (auto left_expr = parse_expr()) {
-            auto bin_expr = m_allocator.allocate<node::BinExpr>();
-
-            auto right_expr = parse_expr();
-            if (!right_expr.has_value()) {
-                std::cerr << "Syntax error: expected expression after +\n";
-                exit(EXIT_FAILURE);
-            }
-
-            auto bin_expr_add = m_allocator.allocate<node::BinExprAdd>();
-            bin_expr_add->left = left_expr.value();
-            bin_expr_add->right = right_expr.value();
-
-            bin_expr->var = bin_expr_add;
-            return bin_expr;
-
-            std::cerr << "Unsupported binary operator\n";
-        }
-
-        return std::nullopt;
-    }
-
     std::optional<node::Term*> parse_term() {
         if (peek().has_value() && peek().value().type == TokenType::INT_LIT) {
             auto term_int_lit = m_allocator.allocate<node::TermIntLit>();
@@ -114,19 +91,21 @@ class Parser {
         if (auto term = parse_term()) {
             if (peek().has_value() && peek().value().type == TokenType::PLUS) {
                 consume();
-                auto bin_expr = m_allocator.allocate<node::BinExpr>();
-                auto bin_expr_add = m_allocator.allocate<node::BinExprAdd>();
                 // Convert the term to an expression
                 auto lhs_expr = m_allocator.allocate<node::Expr>();
                 lhs_expr->var = term.value();
 
-                auto right_expr = parse_expr();
-                if (!right_expr.has_value()) {
+                auto rhs_expr = parse_expr();
+                if (!rhs_expr.has_value()) {
                     std::cerr << "Syntax error: expected expression after +\n";
                     exit(EXIT_FAILURE);
                 }
 
-                bin_expr_add->right = right_expr.value();
+                auto bin_expr_add = m_allocator.allocate<node::BinExprAdd>();
+                bin_expr_add->left = lhs_expr;
+                bin_expr_add->right = rhs_expr.value();
+
+                auto bin_expr = m_allocator.allocate<node::BinExpr>();
                 bin_expr->var = bin_expr_add;
 
                 auto expr = m_allocator.allocate<node::Expr>();
