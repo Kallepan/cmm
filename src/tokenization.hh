@@ -83,7 +83,7 @@ class Tokenizer {
                 continue;
             } else if (peek().value() == '*') {
                 consume();
-                tokens.push_back({TokenType::MULT, "*"});
+                tokens.push_back({TokenType::MULTIPLY, "*"});
                 continue;
             } else if (peek().value() == ';') {
                 consume();
