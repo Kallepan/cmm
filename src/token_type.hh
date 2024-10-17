@@ -11,6 +11,8 @@ enum class TokenType {
     OPEN_PAREN,   // (
     CLOSE_PAREN,  // )
     EQ,           // =
+    PLUS,         // +
+    MULTIPLY,     // *
 
     END_OF_LINE,  // ;
 };
@@ -33,6 +35,10 @@ constexpr const char* toString(TokenType tokenType) {
             return "CLOSE_PARENTHESIS";
         case TokenType::EQ:
             return "EQUALS";
+        case TokenType::PLUS:
+            return "PLUS";
+        case TokenType::MULTIPLY:
+            return "MULTIPLY";
 
         case TokenType::END_OF_LINE:
             return "END_OF_LINE";
