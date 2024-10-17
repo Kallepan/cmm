@@ -43,6 +43,28 @@ class Generator {
         std::visit(TermVisitor{this}, term->var);
     }
 
+    void gen_bin_expr(const node::BinExpr* bin_expr) {
+        struct BinExprVisitor {
+            Generator* gen;
+
+            void operator()(const node::BinExprAdd* bin_expr_add) const {
+                gen->gen_expr(bin_expr_add->left);
+                gen->gen_expr(bin_expr_add->right);
+
+                gen->pop("rax");
+                gen->pop("rbx");
+                gen->m_output << "    add rax, rbx\n";
+                gen->push("rax");
+            }
+
+            void operator()(const node::BinExprMultiply* bin_expr_mult) const {
+                assert(false);  // TODO
+            }
+        };
+
+        std::visit(BinExprVisitor{this}, bin_expr->var);
+    }
+
     void gen_expr(const node::Expr* expr) {
         struct ExprVisitor {
             Generator* gen;
@@ -52,7 +74,7 @@ class Generator {
             }
 
             void operator()(const node::BinExpr* bin_expr) const {
-                assert(false);  // TODO
+                gen->gen_bin_expr(bin_expr);
             }
         };
 
