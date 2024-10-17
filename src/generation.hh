@@ -20,8 +20,7 @@ class Generator {
                 gen->push("rax");
             }
 
-
-            void operator()(const node::TermIdent& term_ident) const {
+            void operator()(const node::TermIdent* term_ident) const {
                 if (gen->m_vars.find(term_ident->ident.value) ==
                     gen->m_vars.end()) {
                     std::cerr
