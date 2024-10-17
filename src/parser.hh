@@ -66,18 +66,18 @@ class Parser {
     {}
 
     std::optional<node::Term*> parse_term() {
-        if (peek().has_value() && peek().value().type == TokenType::INT_LIT) {
+        if (auto int_lit = try_consume(TokenType::INT_LIT)) {
             auto term_int_lit = m_allocator.allocate<node::TermIntLit>();
-            term_int_lit->int_lit = consume();
+            term_int_lit->int_lit = int_lit.value();
 
             auto term = m_allocator.allocate<node::Term>();
             term->var = term_int_lit;
             return term;
         }
 
-        if (peek().has_value() && peek().value().type == TokenType::IDENT) {
+        if (auto ident = try_consume(TokenType::IDENT)) {
             auto term_ident = m_allocator.allocate<node::TermIdent>();
-            term_ident->ident = consume();
+            term_ident->ident = ident.value();
 
             auto term = m_allocator.allocate<node::Term>();
             term->var = term_ident;
@@ -89,8 +89,7 @@ class Parser {
 
     std::optional<node::Expr*> parse_expr() {
         if (auto term = parse_term()) {
-            if (peek().has_value() && peek().value().type == TokenType::PLUS) {
-                consume();
+            if (try_consume(TokenType::PLUS)) {
                 // Convert the term to an expression
                 auto lhs_expr = m_allocator.allocate<node::Expr>();
                 lhs_expr->var = term.value();
@@ -123,8 +122,8 @@ class Parser {
 
     std::optional<node::Stmt*> parse_stmt() {
         // Parse exit statement
-        if (peek().value().type == TokenType::EXIT && peek(1).has_value() &&
-            peek(1).value().type == TokenType::OPEN_PAREN) {
+        if (try_consume(TokenType::EXIT, false) &&
+            try_consume(TokenType::OPEN_PAREN, false, 1)) {
             consume();
             consume();
             node::StmtExit* stmt_exit = m_allocator.allocate<node::StmtExit>();
@@ -137,21 +136,8 @@ class Parser {
                 exit(EXIT_FAILURE);
             }
 
-            if (peek().has_value() &&
-                peek().value().type == TokenType::CLOSE_PAREN) {
-                consume();
-            } else {
-                std::cerr << "Syntax error: expected )\n";
-                exit(EXIT_FAILURE);
-            }
-
-            if (peek().has_value() ||
-                peek().value().type == TokenType::END_OF_LINE) {
-                consume();
-            } else {
-                std::cerr << "Syntax error: expected ;\n";
-                exit(EXIT_FAILURE);
-            }
+            try_consume(TokenType::CLOSE_PAREN, "Syntax error: expected )\n");
+            try_consume(TokenType::END_OF_LINE, "Syntax error: expected ;\n");
 
             node::Stmt* stmt = m_allocator.allocate<node::Stmt>();
             stmt->var = stmt_exit;
@@ -159,9 +145,9 @@ class Parser {
         }
 
         // Parse let statement
-        if (peek().has_value() && peek().value().type == TokenType::LET &&
-            peek(1).has_value() && peek(1).value().type == TokenType::IDENT &&
-            peek(2).has_value() && peek(2).value().type == TokenType::EQ) {
+        if (try_consume(TokenType::LET, false) &&
+            try_consume(TokenType::IDENT, false, 1) &&
+            try_consume(TokenType::EQ, false, 2)) {
             consume();
             node::StmtLet* stmt_let = m_allocator.allocate<node::StmtLet>();
             stmt_let->ident = consume();
@@ -174,13 +160,7 @@ class Parser {
                 exit(EXIT_FAILURE);
             }
 
-            if (peek().has_value() ||
-                peek().value().type == TokenType::END_OF_LINE) {
-                consume();
-            } else {
-                std::cerr << "Syntax error: expected ;\n";
-                exit(EXIT_FAILURE);
-            }
+            try_consume(TokenType::END_OF_LINE, "Syntax error: expected ;\n");
 
             node::Stmt* stmt = m_allocator.allocate<node::Stmt>();
             stmt->var = stmt_let;
@@ -214,6 +194,28 @@ class Parser {
     }
 
     inline Token consume() { return m_tokens.at(m_index++); }
+
+    inline Token try_consume(TokenType type, const std::string& error_message) {
+        auto lexme = peek();
+        if (lexme.has_value() && lexme.value().type == type) {
+            return consume();
+        }
+
+        std::cerr << error_message << "\n";
+        exit(EXIT_FAILURE);
+    }
+
+    inline std::optional<Token> try_consume(TokenType type,
+                                            bool consume_token = true,
+                                            size_t offset = 0) {
+        auto lexme = peek(offset);
+        if (lexme.has_value() && lexme.value().type == type) {
+            if (consume_token) return consume();
+            return lexme;
+        }
+
+        return std::nullopt;
+    }
 
     const std::vector<Token> m_tokens;
     size_t m_index{0};
