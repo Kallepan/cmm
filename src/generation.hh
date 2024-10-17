@@ -20,10 +20,12 @@ class Generator {
                 gen->push("rax");
             }
 
-
-            void operator()(const node::TermIdent& term_ident) const {
-                if (gen->m_vars.find(term_ident->ident.value) ==
-                    gen->m_vars.end()) {
+            void operator()(const node::TermIdent* term_ident) const {
+                if (std::find_if(gen->m_vars.begin(), gen->m_vars.end(),
+                                 [&term_ident](const auto& var) {
+                                     return var.first ==
+                                            term_ident->ident.value;
+                                 }) == gen->m_vars.end()) {
                     std::cerr
                         << "Variable not declared: " << term_ident->ident.value
                         << "\n";
