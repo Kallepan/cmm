@@ -9,16 +9,16 @@
 
 namespace node {
 struct TermIntLit {
-    Token int_lit;
+    Token integer_literal;
 };
 
 struct TermIdent {
-    Token ident;
+    Token identifier;
 };
 
 struct Expr;
 
-struct BinExprAdd {
+struct BinExprAddition {
     Expr* left;
     Expr* right;
 };
@@ -29,7 +29,7 @@ struct BinExprMultiply {
 };
 
 struct BinExpr {
-    std::variant<BinExprAdd*, BinExprMultiply*> var;
+    std::variant<BinExprAddition*, BinExprMultiply*> var;
 };
 
 struct Term {
@@ -45,7 +45,7 @@ struct StmtExit {
 };
 
 struct StmtLet {
-    Token ident;
+    Token identifier;
     Expr* expr;
 };
 
@@ -66,18 +66,18 @@ class Parser {
     {}
 
     std::optional<node::Term*> parse_term() {
-        if (auto int_lit = try_consume(TokenType::INT_LIT)) {
+        if (auto integer_literal = try_consume(TokenType::INT_LIT)) {
             auto term_int_lit = m_allocator.allocate<node::TermIntLit>();
-            term_int_lit->int_lit = int_lit.value();
+            term_int_lit->integer_literal = integer_literal.value();
 
             auto term = m_allocator.allocate<node::Term>();
             term->var = term_int_lit;
             return term;
         }
 
-        if (auto ident = try_consume(TokenType::IDENT)) {
+        if (auto identifier = try_consume(TokenType::IDENT)) {
             auto term_ident = m_allocator.allocate<node::TermIdent>();
-            term_ident->ident = ident.value();
+            term_ident->identifier = identifier.value();
 
             auto term = m_allocator.allocate<node::Term>();
             term->var = term_ident;
@@ -87,37 +87,64 @@ class Parser {
         return std::nullopt;
     }
 
-    std::optional<node::Expr*> parse_expr() {
-        if (auto term = parse_term()) {
-            if (try_consume(TokenType::PLUS)) {
-                // Convert the term to an expression
-                auto lhs_expr = m_allocator.allocate<node::Expr>();
-                lhs_expr->var = term.value();
-
-                auto rhs_expr = parse_expr();
-                if (!rhs_expr.has_value()) {
-                    std::cerr << "Syntax error: expected expression after +\n";
-                    exit(EXIT_FAILURE);
-                }
-
-                auto bin_expr_add = m_allocator.allocate<node::BinExprAdd>();
-                bin_expr_add->left = lhs_expr;
-                bin_expr_add->right = rhs_expr.value();
-
-                auto bin_expr = m_allocator.allocate<node::BinExpr>();
-                bin_expr->var = bin_expr_add;
-
-                auto expr = m_allocator.allocate<node::Expr>();
-                expr->var = bin_expr;
-                return expr;
-            }
-
-            auto expr = m_allocator.allocate<node::Expr>();
-            expr->var = term.value();
-            return expr;
+    // Function takes the minimum precedence level (default 0) and returns the
+    // corresponding expression
+    std::optional<node::Expr*> parse_expr(int minimum_precedence = 0) {
+        std::optional<node::Term*> term_lhs = parse_term();
+        if (!term_lhs.has_value()) {
+            return std::nullopt;
         }
 
-        return std::nullopt;
+        auto expr = m_allocator.allocate<node::Expr>();
+        expr->var = term_lhs.value();
+
+        while (true) {
+            std::optional<Token> next_token = peek();
+            if (!next_token.has_value()) {
+                break;
+            }
+
+            std::optional<int> precedence = bin_prec(next_token->type);
+            if (!precedence.has_value() ||
+                precedence.value() < minimum_precedence) {
+                break;
+            }
+
+            Token operator_token = consume();
+            int next_minimum_precedence = precedence.value() + 1;
+            auto expr_rhs = parse_expr(next_minimum_precedence);
+            if (!expr_rhs.has_value()) {
+                std::cerr
+                    << "Syntax error: expected expression after operator\n";
+                exit(EXIT_FAILURE);
+            }
+
+            auto bin_expr = m_allocator.allocate<node::BinExpr>();
+            auto expr_lhs = m_allocator.allocate<node::Expr>();
+            if (operator_token.type == TokenType::PLUS) {
+                expr_lhs->var = expr->var;
+
+                auto expr_binary_addition =
+                    m_allocator.allocate<node::BinExprAddition>();
+                expr_binary_addition->left = expr_lhs;
+                expr_binary_addition->right = expr_rhs.value();
+
+                bin_expr->var = expr_binary_addition;
+            } else if (operator_token.type == TokenType::MULTIPLY) {
+                expr_lhs->var = expr->var;
+
+                auto expr_binary_multiply =
+                    m_allocator.allocate<node::BinExprMultiply>();
+                expr_binary_multiply->left = expr_lhs;
+                expr_binary_multiply->right = expr_rhs.value();
+
+                bin_expr->var = expr_binary_multiply;
+            }
+
+            expr->var = bin_expr;
+        }
+
+        return expr;
     }
 
     std::optional<node::Stmt*> parse_stmt() {
@@ -150,7 +177,7 @@ class Parser {
             try_consume(TokenType::EQ, false, 2)) {
             consume();
             node::StmtLet* stmt_let = m_allocator.allocate<node::StmtLet>();
-            stmt_let->ident = consume();
+            stmt_let->identifier = consume();
             consume();
             if (auto node_expr = parse_expr()) {
                 stmt_let->expr = node_expr.value();

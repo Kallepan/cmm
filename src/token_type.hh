@@ -48,6 +48,24 @@ constexpr const char* toString(TokenType tokenType) {
     }
 }
 
+/**
+ * @brief Overload the << operator for TokenType to return the string
+ * representation
+ */
 inline std::ostream& operator<<(std::ostream& os, TokenType tokenType) {
     return os << toString(tokenType);
+}
+
+/**
+ * @brief Check if a token has a unary precedence
+ */
+std::optional<int> bin_prec(TokenType tokenType) {
+    switch (tokenType) {
+        case TokenType::PLUS:
+            return 1;
+        case TokenType::MULTIPLY:
+            return 2;
+        default:
+            return std::nullopt;
+    }
 }

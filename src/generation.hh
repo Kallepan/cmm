@@ -15,21 +15,21 @@ class Generator {
         struct TermVisitor {
             Generator* gen;
             void operator()(const node::TermIntLit* term_int_lit) const {
-                gen->m_output << "    mov rax, " << term_int_lit->int_lit.value
+                gen->m_output << "    mov rax, " << term_int_lit->integer_literal.value
                               << "\n";
                 gen->push("rax");
             }
 
             void operator()(const node::TermIdent* term_ident) const {
-                if (gen->m_vars.find(term_ident->ident.value) ==
+                if (gen->m_vars.find(term_ident->identifier.value) ==
                     gen->m_vars.end()) {
                     std::cerr
-                        << "Variable not declared: " << term_ident->ident.value
+                        << "Variable not declared: " << term_ident->identifier.value
                         << "\n";
                     exit(EXIT_FAILURE);
                 }
 
-                const auto& var = gen->m_vars.at(term_ident->ident.value);
+                const auto& var = gen->m_vars.at(term_ident->identifier.value);
                 gen->push("QWORD [rsp + " +
                           std::to_string(
                               (gen->m_stack_pointer - var.stack_loc - 1) * 8) +
@@ -44,7 +44,7 @@ class Generator {
         struct BinExprVisitor {
             Generator* gen;
 
-            void operator()(const node::BinExprAdd* bin_expr_add) const {
+            void operator()(const node::BinExprAddition* bin_expr_add) const {
                 gen->gen_expr(bin_expr_add->left);
                 gen->gen_expr(bin_expr_add->right);
 
@@ -55,7 +55,13 @@ class Generator {
             }
 
             void operator()(const node::BinExprMultiply* bin_expr_mult) const {
-                assert(false);  // TODO
+                gen->gen_expr(bin_expr_mult->left);
+                gen->gen_expr(bin_expr_mult->right);
+
+                gen->pop("rax");
+                gen->pop("rbx");
+                gen->m_output << "    mul rbx\n";
+                gen->push("rax");
             }
         };
 
@@ -90,14 +96,14 @@ class Generator {
             }
 
             void operator()(const node::StmtLet* stmt_let) const {
-                if (gen->m_vars.contains(stmt_let->ident.value)) {
+                if (gen->m_vars.contains(stmt_let->identifier.value)) {
                     std::cerr << "Variable already declared: "
-                              << stmt_let->ident.value << "\n";
+                              << stmt_let->identifier.value << "\n";
                     exit(EXIT_FAILURE);
                 }
 
                 gen->m_vars.insert(
-                    {stmt_let->ident.value, Var{gen->m_stack_pointer}});
+                    {stmt_let->identifier.value, Var{gen->m_stack_pointer}});
                 gen->gen_expr(stmt_let->expr);
             }
         };
