@@ -41,12 +41,12 @@ struct Expr {
 };
 
 struct StmtExit {
-    Expr* expr;
+    Expr* expression;
 };
 
 struct StmtLet {
     Token identifier;
-    Expr* expr;
+    Expr* expression;
 };
 
 struct Stmt {
@@ -54,7 +54,7 @@ struct Stmt {
 };
 
 struct Prog {
-    std::vector<Stmt*> stmts;
+    std::vector<Stmt*> statements;
 };
 }  // namespace node
 
@@ -95,8 +95,8 @@ class Parser {
             return std::nullopt;
         }
 
-        auto expr = m_allocator.allocate<node::Expr>();
-        expr->var = term_lhs.value();
+        auto expression = m_allocator.allocate<node::Expr>();
+        expression->var = term_lhs.value();
 
         while (true) {
             std::optional<Token> next_token = peek();
@@ -122,7 +122,7 @@ class Parser {
             auto bin_expr = m_allocator.allocate<node::BinExpr>();
             auto expr_lhs = m_allocator.allocate<node::Expr>();
             if (operator_token.type == TokenType::PLUS) {
-                expr_lhs->var = expr->var;
+                expr_lhs->var = expression->var;
 
                 auto expr_binary_addition =
                     m_allocator.allocate<node::BinExprAddition>();
@@ -131,7 +131,7 @@ class Parser {
 
                 bin_expr->var = expr_binary_addition;
             } else if (operator_token.type == TokenType::MULTIPLY) {
-                expr_lhs->var = expr->var;
+                expr_lhs->var = expression->var;
 
                 auto expr_binary_multiply =
                     m_allocator.allocate<node::BinExprMultiply>();
@@ -141,10 +141,10 @@ class Parser {
                 bin_expr->var = expr_binary_multiply;
             }
 
-            expr->var = bin_expr;
+            expression->var = bin_expr;
         }
 
-        return expr;
+        return expression;
     }
 
     std::optional<node::Stmt*> parse_stmt() {
@@ -156,7 +156,7 @@ class Parser {
             node::StmtExit* stmt_exit = m_allocator.allocate<node::StmtExit>();
 
             if (auto node_expr = parse_expr()) {
-                stmt_exit->expr = node_expr.value();
+                stmt_exit->expression = node_expr.value();
             } else {
                 std::cerr << "Syntax error: expected integer literal after exit"
                           << "\n";
@@ -166,9 +166,9 @@ class Parser {
             try_consume(TokenType::CLOSE_PAREN, "Syntax error: expected )\n");
             try_consume(TokenType::END_OF_LINE, "Syntax error: expected ;\n");
 
-            node::Stmt* stmt = m_allocator.allocate<node::Stmt>();
-            stmt->var = stmt_exit;
-            return stmt;
+            node::Stmt* statement = m_allocator.allocate<node::Stmt>();
+            statement->var = stmt_exit;
+            return statement;
         }
 
         // Parse let statement
@@ -176,11 +176,11 @@ class Parser {
             try_consume(TokenType::IDENT, false, 1) &&
             try_consume(TokenType::EQ, false, 2)) {
             consume();
-            node::StmtLet* stmt_let = m_allocator.allocate<node::StmtLet>();
-            stmt_let->identifier = consume();
+            node::StmtLet* statement_let = m_allocator.allocate<node::StmtLet>();
+            statement_let->identifier = consume();
             consume();
             if (auto node_expr = parse_expr()) {
-                stmt_let->expr = node_expr.value();
+                statement_let->expression = node_expr.value();
             } else {
                 std::cerr << "Syntax error: expected integer literal after let"
                           << "\n";
@@ -189,9 +189,9 @@ class Parser {
 
             try_consume(TokenType::END_OF_LINE, "Syntax error: expected ;\n");
 
-            node::Stmt* stmt = m_allocator.allocate<node::Stmt>();
-            stmt->var = stmt_let;
-            return stmt;
+            node::Stmt* statement = m_allocator.allocate<node::Stmt>();
+            statement->var = statement_let;
+            return statement;
         }
 
         return std::nullopt;
@@ -200,8 +200,8 @@ class Parser {
     std::optional<node::Prog> parse_prog() {
         node::Prog prog{};
         while (peek().has_value()) {
-            if (auto stmt = parse_stmt()) {
-                prog.stmts.push_back(stmt.value());
+            if (auto statement = parse_stmt()) {
+                prog.statements.push_back(statement.value());
             } else {
                 std::cerr << "Syntax error: expected statement\n";
                 exit(EXIT_FAILURE);

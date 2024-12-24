@@ -44,9 +44,9 @@ class Generator {
         struct BinExprVisitor {
             Generator* gen;
 
-            void operator()(const node::BinExprAddition* bin_expr_add) const {
-                gen->gen_expr(bin_expr_add->left);
-                gen->gen_expr(bin_expr_add->right);
+            void operator()(const node::BinExprAddition* expr_binary_addition) const {
+                gen->gen_expr(expr_binary_addition->left);
+                gen->gen_expr(expr_binary_addition->right);
 
                 gen->pop("rax");
                 gen->pop("rbx");
@@ -54,9 +54,9 @@ class Generator {
                 gen->push("rax");
             }
 
-            void operator()(const node::BinExprMultiply* bin_expr_mult) const {
-                gen->gen_expr(bin_expr_mult->left);
-                gen->gen_expr(bin_expr_mult->right);
+            void operator()(const node::BinExprMultiply* expr_binary_multiply) const {
+                gen->gen_expr(expr_binary_multiply->left);
+                gen->gen_expr(expr_binary_multiply->right);
 
                 gen->pop("rax");
                 gen->pop("rbx");
@@ -68,7 +68,7 @@ class Generator {
         std::visit(BinExprVisitor{this}, bin_expr->var);
     }
 
-    void gen_expr(const node::Expr* expr) {
+    void gen_expr(const node::Expr* expression) {
         struct ExprVisitor {
             Generator* gen;
 
@@ -81,42 +81,42 @@ class Generator {
             }
         };
 
-        std::visit(ExprVisitor{this}, expr->var);
+        std::visit(ExprVisitor{this}, expression->var);
     }
 
-    void gen_stmt(const node::Stmt* stmt) {
+    void gen_stmt(const node::Stmt* statement) {
         struct StmtVisitor {
             Generator* gen;
 
             void operator()(const node::StmtExit* stmt_exit) const {
-                gen->gen_expr(stmt_exit->expr);
+                gen->gen_expr(stmt_exit->expression);
                 gen->m_output << "    mov rax, 60\n";
                 gen->pop("rdi");
                 gen->m_output << "    syscall\n";
             }
 
-            void operator()(const node::StmtLet* stmt_let) const {
-                if (gen->m_vars.contains(stmt_let->identifier.value)) {
+            void operator()(const node::StmtLet* statement_let) const {
+                if (gen->m_vars.contains(statement_let->identifier.value)) {
                     std::cerr << "Variable already declared: "
-                              << stmt_let->identifier.value << "\n";
+                              << statement_let->identifier.value << "\n";
                     exit(EXIT_FAILURE);
                 }
 
                 gen->m_vars.insert(
-                    {stmt_let->identifier.value, Var{gen->m_stack_pointer}});
-                gen->gen_expr(stmt_let->expr);
+                    {statement_let->identifier.value, Var{gen->m_stack_pointer}});
+                gen->gen_expr(statement_let->expression);
             }
         };
 
-        std::visit(StmtVisitor{this}, stmt->var);
+        std::visit(StmtVisitor{this}, statement->var);
     }
 
     [[nodiscard]] std::string gen_prog() {
         m_output << "global _start\n\n_start:\n";
 
         // Parse: start
-        for (const auto& stmt : m_prog.stmts) {
-            gen_stmt(stmt);
+        for (const auto& statement : m_prog.statements) {
+            gen_stmt(statement);
         }
         // Parse: end
 
