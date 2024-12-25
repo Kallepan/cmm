@@ -19,6 +19,9 @@ enum class TokenType {
     END_OF_LINE,  // ;
 };
 
+/**
+ * @brief Convert a TokenType to a string
+ */
 constexpr const char* toString(TokenType tokenType) {
     switch (tokenType) {
         case TokenType::INT_LIT:
