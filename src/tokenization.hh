@@ -22,12 +22,23 @@ class Tokenizer {
 
         // Continue looking for tokens until the end of the source
         while (peek().has_value()) {
-            // Handle Newline
-            if (peek().value() == '\n') {
-                m_line_number++;
+            char c = peek().value();
+            // Skip whitespace
+            if (std::isspace(c)) {
                 consume();
                 continue;
-            } else if (std::isalpha(peek().value())) {
+            }
+
+            // New line
+            if (c == '\n') {
+                m_line_number++;
+                m_col_number = 0;
+                consume();
+                continue;
+            }
+
+            // Identifier
+            if (std::isalpha(c)) {
                 token_buff.push_back(consume());
                 while (peek().has_value() && std::isalnum(peek().value())) {
                     token_buff.push_back(consume());
@@ -47,64 +58,76 @@ class Tokenizer {
                 tokens.push_back({TokenType::IDENT, token_buff});
                 token_buff.clear();
                 continue;
+            }
 
-            } else if (std::isdigit(peek().value())) {
+            // Number
+            if (std::isdigit(c)) {
                 token_buff.push_back(consume());
                 while (peek().has_value() && std::isdigit(peek().value())) {
                     token_buff.push_back(consume());
                 }
 
-                // Handle token
-                if (std::isdigit(token_buff[0])) {
-                    tokens.push_back({TokenType::INT_LIT, token_buff});
-                    token_buff.clear();
-                    continue;
-                } else {
+                if (!std::isdigit(token_buff[0])) {
                     std::cerr << "Syntax error: " << token_buff
                               << " at line: " << m_line_number << "\n";
 
                     exit(EXIT_FAILURE);
                 }
-            } else if (peek().value() == '(') {
+
+                tokens.push_back({TokenType::INT_LIT, token_buff});
+                token_buff.clear();
+                continue;
+            }
+
+            // Handle operators
+            if (c == '(') {
                 consume();
                 tokens.push_back({TokenType::OPEN_PAREN, "("});
                 continue;
-            } else if (peek().value() == ')') {
+            }
+            if (c == ')') {
                 consume();
                 tokens.push_back({TokenType::CLOSE_PAREN, ")"});
                 continue;
-            } else if (peek().value() == '=') {
+            }
+            if (c == '=') {
                 consume();
                 tokens.push_back({TokenType::EQ, "="});
                 continue;
-            } else if (peek().value() == '+') {
+            }
+            if (c == '+') {
                 consume();
                 tokens.push_back({TokenType::PLUS, "+"});
                 continue;
-            } else if (peek().value() == '-') {
+            }
+            if (c == '-') {
                 consume();
                 tokens.push_back({TokenType::SUBTRACT, "-"});
                 continue;
-            } else if (peek().value() == '*') {
+            }
+            if (c == '*') {
                 consume();
                 tokens.push_back({TokenType::MULTIPLY, "*"});
                 continue;
-            } else if (peek().value() == '/') {
+            }
+            if (c == '/') {
                 consume();
                 tokens.push_back({TokenType::DIVIDE, "/"});
                 continue;
-            } else if (peek().value() == ';') {
+            }
+
+            // Semicolon, end of line
+            if (c == ';') {
                 consume();
                 tokens.push_back({TokenType::END_OF_LINE, ";"});
                 continue;
-            } else if (std::isspace(peek().value())) {
-                consume();
-                continue;
-            } else {
-                std::cerr << "Syntax error: " << peek().value()
-                          << " at line: " << m_line_number << "\n";
-                exit(EXIT_FAILURE);
             }
+
+            // Syntax error, no token found
+            std::cerr << "Syntax error: " << peek().value()
+                      << " at column: " << m_col_number
+                      << " in line: " << m_line_number << "\n";
+            exit(EXIT_FAILURE);
         }
 
 #ifdef DEBUG
@@ -114,6 +137,7 @@ class Tokenizer {
         }
 #endif
         m_index = 0;
+        m_col_number = 1;
         m_line_number = 1;
         return tokens;
     }
@@ -127,9 +151,13 @@ class Tokenizer {
         return m_src[m_index + offset];
     }
 
-    inline char consume() { return m_src.at(m_index++); }
+    inline char consume() {
+        m_col_number++;
+        return m_src.at(m_index++);
+    }
 
     const std::string m_src;
     size_t m_index{0};
+    size_t m_col_number{1};
     size_t m_line_number{1};
 };
