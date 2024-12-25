@@ -81,9 +81,17 @@ class Tokenizer {
                 consume();
                 tokens.push_back({TokenType::PLUS, "+"});
                 continue;
+            } else if (peek().value() == '-') {
+                consume();
+                tokens.push_back({TokenType::SUBTRACT, "-"});
+                continue;
             } else if (peek().value() == '*') {
                 consume();
                 tokens.push_back({TokenType::MULTIPLY, "*"});
+                continue;
+            } else if (peek().value() == '/') {
+                consume();
+                tokens.push_back({TokenType::DIVIDE, "/"});
                 continue;
             } else if (peek().value() == ';') {
                 consume();
