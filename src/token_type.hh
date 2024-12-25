@@ -8,17 +8,20 @@ enum class TokenType {
 
     EXIT,  // return
 
-    OPEN_PAREN,   // (
-    CLOSE_PAREN,  // )
-    EQ,           // =
-    PLUS,         // +
-    SUBTRACT,     // -
-    MULTIPLY,     // *
-    DIVIDE,       // /
+    OPEN_PAREN,     // (
+    CLOSE_PAREN,    // )
+    EQ,             // =
+    PLUS,           // +
+    MINUS,          // -
+    STAR,           // *
+    FORWARD_SLASH,  // /
 
     END_OF_LINE,  // ;
 };
 
+/**
+ * @brief Convert a TokenType to a string
+ */
 constexpr const char* toString(TokenType tokenType) {
     switch (tokenType) {
         case TokenType::INT_LIT:
@@ -39,12 +42,12 @@ constexpr const char* toString(TokenType tokenType) {
             return "EQUALS";
         case TokenType::PLUS:
             return "PLUS";
-        case TokenType::SUBTRACT:
-            return "SUBTRACT";
-        case TokenType::MULTIPLY:
-            return "MULTIPLY";
-        case TokenType::DIVIDE:
-            return "DIVIDE";
+        case TokenType::MINUS:
+            return "MINUS";
+        case TokenType::STAR:
+            return "STAR";
+        case TokenType::FORWARD_SLASH:
+            return "FORWARD_SLASH";
 
         case TokenType::END_OF_LINE:
             return "END_OF_LINE";
@@ -68,10 +71,10 @@ inline std::ostream& operator<<(std::ostream& os, TokenType tokenType) {
 std::optional<int> bin_prec(TokenType tokenType) {
     switch (tokenType) {
         case TokenType::PLUS:
-        case TokenType::SUBTRACT:
+        case TokenType::MINUS:
             return 1;
-        case TokenType::MULTIPLY:
-        case TokenType::DIVIDE:
+        case TokenType::STAR:
+        case TokenType::FORWARD_SLASH:
             return 2;
         default:
             return std::nullopt;
