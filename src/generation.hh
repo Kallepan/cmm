@@ -14,25 +14,32 @@ class Generator {
     void gen_term(const node::Term* term) {
         struct TermVisitor {
             Generator* gen;
-            void operator()(const node::TermIntLit* term_int_lit) const {
+            void operator()(
+                const node::TermIntLit* term_integer_literal) const {
                 gen->m_output << "    mov rax, "
-                              << term_int_lit->integer_literal.value << "\n";
+                              << term_integer_literal->integer_literal.value
+                              << "\n";
                 gen->push("rax");
             }
 
-            void operator()(const node::TermIdent* term_ident) const {
-                if (gen->m_vars.find(term_ident->identifier.value) ==
+            void operator()(const node::TermIdent* term_identifier) const {
+                if (gen->m_vars.find(term_identifier->identifier.value) ==
                     gen->m_vars.end()) {
                     std::cerr << "Variable not declared: "
-                              << term_ident->identifier.value << "\n";
+                              << term_identifier->identifier.value << "\n";
                     exit(EXIT_FAILURE);
                 }
 
-                const auto& var = gen->m_vars.at(term_ident->identifier.value);
+                const auto& var =
+                    gen->m_vars.at(term_identifier->identifier.value);
                 gen->push("QWORD [rsp + " +
                           std::to_string(
                               (gen->m_stack_pointer - var.stack_loc - 1) * 8) +
                           "]");
+            }
+
+            void operator()(const node::TermParen* term_parenthesis) const {
+                gen->gen_expr(term_parenthesis->expression);
             }
         };
 
@@ -121,7 +128,7 @@ class Generator {
             }
 
             void operator()(const node::StmtLet* statement_let) const {
-                if (gen->m_vars.contains(statement_let->identifier.value)) {
+                if (gen->m_vars.find(statement_let->identifier.value) != gen->m_vars.end()) {
                     std::cerr << "Variable already declared: "
                               << statement_let->identifier.value << "\n";
                     exit(EXIT_FAILURE);
