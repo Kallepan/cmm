@@ -16,6 +16,9 @@ enum class TokenType {
     STAR,           // *
     FORWARD_SLASH,  // /
 
+    OPEN_CURLY,   // {
+    CLOSE_CURLY,  // }
+
     END_OF_LINE,  // ;
 };
 
@@ -48,6 +51,11 @@ constexpr const char* toString(TokenType tokenType) {
             return "STAR";
         case TokenType::FORWARD_SLASH:
             return "FORWARD_SLASH";
+
+        case TokenType::OPEN_CURLY:
+            return "OPEN_CURLY";
+        case TokenType::CLOSE_CURLY:
+            return "CLOSE_CURLY";
 
         case TokenType::END_OF_LINE:
             return "END_OF_LINE";

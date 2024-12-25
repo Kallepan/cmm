@@ -65,8 +65,14 @@ struct StmtLet {
     Expr* expression;
 };
 
+struct Stmt;
+
+struct StmtScope {
+    std::vector<Stmt*> statements;
+};
+
 struct Stmt {
-    std::variant<StmtExit*, StmtLet*> var;
+    std::variant<StmtExit*, StmtLet*, StmtScope*> var;
 };
 
 struct Prog {
@@ -247,6 +253,27 @@ class Parser {
 
             node::Stmt* statement = m_allocator.allocate<node::Stmt>();
             statement->var = statement_let;
+            return statement;
+        }
+
+        // Parse scope statement
+        if (try_consume(TokenType::OPEN_CURLY, false)) {
+            consume();
+            node::StmtScope* statement_scope =
+                m_allocator.allocate<node::StmtScope>();
+
+            while (auto stmt = parse_stmt()) {
+                statement_scope->statements.push_back(stmt.value());
+            }
+
+            if (!try_consume(TokenType::CLOSE_CURLY, false)) {
+                std::cerr << "Syntax error: expected statement\n";
+                exit(EXIT_FAILURE);
+            }
+            consume();
+
+            node::Stmt* statement = m_allocator.allocate<node::Stmt>();
+            statement->var = statement_scope;
             return statement;
         }
 

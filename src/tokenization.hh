@@ -120,6 +120,18 @@ class Tokenizer {
                 continue;
             }
 
+            // Handle braces
+            if (c == '{') {
+                consume();
+                tokens.push_back({TokenType::OPEN_CURLY, "{"});
+                continue;
+            }
+            if (c == '}') {
+                consume();
+                tokens.push_back({TokenType::CLOSE_CURLY, "}"});
+                continue;
+            }
+
             // Semicolon, end of line
             if (c == ';') {
                 consume();

@@ -1,10 +1,11 @@
 $$
 \begin{align}
-[\text{Prog}] &\to [\text{Stmt}]^* \\
+[\text{Prog}] &\to [\text{Stmt}]^* \\ % Program
 
 [\text{Stmt}] &\to \begin{cases}
-    \text{exit}([\text{Expr}]); \\
-    \text{let ident} = [\text{Expr}]; \\
+    \text{exit}([\text{Expr}]); \\ % Exit
+    \text{let ident} = [\text{Expr}]; \\ % Let
+    \{[\text{Stmt}]^*\} \\ % Scope
 \end{cases} \\
 
 [\text{Expr}] &\to

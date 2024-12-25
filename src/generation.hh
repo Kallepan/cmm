@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <unordered_map>
 #include <utility>
 
 #include "parser.hh"
@@ -23,19 +22,24 @@ class Generator {
             }
 
             void operator()(const node::TermIdent* term_identifier) const {
-                if (gen->m_vars.find(term_identifier->identifier.value) ==
-                    gen->m_vars.end()) {
+                // Check if the variable is declared by looking it up in the
+                // variable vector using find_if
+                auto idx = std::find_if(
+                    gen->m_vars.cbegin(), gen->m_vars.cend(),
+                    [&](const Var& var) {
+                        return var.name == term_identifier->identifier.value;
+                    });
+                if (idx == gen->m_vars.cend()) {
                     std::cerr << "Variable not declared: "
                               << term_identifier->identifier.value << "\n";
                     exit(EXIT_FAILURE);
                 }
 
-                const auto& var =
-                    gen->m_vars.at(term_identifier->identifier.value);
-                gen->push("QWORD [rsp + " +
-                          std::to_string(
-                              (gen->m_stack_pointer - var.stack_loc - 1) * 8) +
-                          "]");
+                gen->push(
+                    "QWORD [rsp + " +
+                    std::to_string(
+                        (gen->m_stack_pointer - (*idx).stack_loc - 1) * 8) +
+                    "]");
             }
 
             void operator()(const node::TermParen* term_parenthesis) const {
@@ -128,15 +132,34 @@ class Generator {
             }
 
             void operator()(const node::StmtLet* statement_let) const {
-                if (gen->m_vars.find(statement_let->identifier.value) != gen->m_vars.end()) {
+                // Check if the variable is already declared in the current
+                // scope
+                auto iterator = std::find_if(
+                    gen->m_vars.cbegin(), gen->m_vars.cend(),
+                    [&](const Var& var) {
+                        return var.name == statement_let->identifier.value &&
+                               var.scope == gen->m_stack_scopes.size() - 1;
+                    });
+                if (iterator != gen->m_vars.cend()) {
                     std::cerr << "Variable already declared: "
                               << statement_let->identifier.value << "\n";
                     exit(EXIT_FAILURE);
                 }
 
-                gen->m_vars.insert({statement_let->identifier.value,
-                                    Var{gen->m_stack_pointer}});
+                gen->m_vars.push_back(Var{statement_let->identifier.value,
+                                          gen->m_stack_pointer,
+                                          gen->m_stack_scopes.size() - 1});
                 gen->gen_expr(statement_let->expression);
+            }
+
+            void operator()(const node::StmtScope* scope) const {
+                gen->begin_scope();
+
+                for (const auto& statement : scope->statements) {
+                    gen->gen_stmt(statement);
+                }
+
+                gen->end_scope();
             }
         };
 
@@ -161,6 +184,15 @@ class Generator {
     }
 
    private:
+    void begin_scope() { m_stack_scopes.push_back(m_vars.size()); }
+    void end_scope() {
+        size_t variables_to_pop = m_vars.size() - m_stack_scopes.back();
+        m_output << "    add rsp, " << variables_to_pop * 8 << "\n";
+        m_stack_pointer -= variables_to_pop;
+        m_vars.resize(m_stack_scopes.back());
+        m_stack_scopes.pop_back();
+    }
+
     void push(const std::string& reg) {
         m_output << "    push " << reg << "\n";
         m_stack_pointer++;
@@ -179,7 +211,10 @@ class Generator {
 
     // Keeps track of the variable names
     struct Var {
+        std::string name;
         size_t stack_loc;
+        size_t scope;
     };
-    std::unordered_map<std::string, Var> m_vars{};
+    std::vector<Var> m_vars;             // Keeps track of the variables
+    std::vector<size_t> m_stack_scopes;  // Keeps track of the stack scopes
 };
