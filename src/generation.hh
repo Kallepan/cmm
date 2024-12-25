@@ -14,26 +14,32 @@ class Generator {
     void gen_term(const node::Term* term) {
         struct TermVisitor {
             Generator* gen;
-            void operator()(const node::TermIntLit* term_int_lit) const {
-                gen->m_output << "    mov rax, " << term_int_lit->int_lit.value
+            void operator()(
+                const node::TermIntLit* term_integer_literal) const {
+                gen->m_output << "    mov rax, "
+                              << term_integer_literal->integer_literal.value
                               << "\n";
                 gen->push("rax");
             }
 
-            void operator()(const node::TermIdent* term_ident) const {
-                if (gen->m_vars.find(term_ident->ident.value) ==
+            void operator()(const node::TermIdent* term_identifier) const {
+                if (gen->m_vars.find(term_identifier->identifier.value) ==
                     gen->m_vars.end()) {
-                    std::cerr
-                        << "Variable not declared: " << term_ident->ident.value
-                        << "\n";
+                    std::cerr << "Variable not declared: "
+                              << term_identifier->identifier.value << "\n";
                     exit(EXIT_FAILURE);
                 }
 
-                const auto& var = gen->m_vars.at(term_ident->ident.value);
+                const auto& var =
+                    gen->m_vars.at(term_identifier->identifier.value);
                 gen->push("QWORD [rsp + " +
                           std::to_string(
                               (gen->m_stack_pointer - var.stack_loc - 1) * 8) +
                           "]");
+            }
+
+            void operator()(const node::TermParen* term_parenthesis) const {
+                gen->gen_expr(term_parenthesis->expression);
             }
         };
 
@@ -44,9 +50,10 @@ class Generator {
         struct BinExprVisitor {
             Generator* gen;
 
-            void operator()(const node::BinExprAdd* bin_expr_add) const {
-                gen->gen_expr(bin_expr_add->left);
-                gen->gen_expr(bin_expr_add->right);
+            void operator()(
+                const node::BinExprAddition* expr_binary_addition) const {
+                gen->gen_expr(expr_binary_addition->right);
+                gen->gen_expr(expr_binary_addition->left);
 
                 gen->pop("rax");
                 gen->pop("rbx");
@@ -54,15 +61,46 @@ class Generator {
                 gen->push("rax");
             }
 
-            void operator()(const node::BinExprMultiply* bin_expr_mult) const {
-                assert(false);  // TODO
+            void operator()(
+                const node::BinExprSubtraction* expr_binary_sub) const {
+                gen->gen_expr(expr_binary_sub->right);
+                gen->gen_expr(expr_binary_sub->left);
+
+                gen->pop("rax");
+                gen->pop("rbx");
+                gen->m_output << "    sub rax, rbx\n";
+                gen->push("rax");
+            }
+
+            void operator()(
+                const node::BinExprMultiplication* expr_binary_multiply) const {
+                gen->gen_expr(expr_binary_multiply->left);
+                gen->gen_expr(expr_binary_multiply->right);
+
+                gen->pop("rax");
+                gen->pop("rbx");
+                gen->m_output << "    xor rdx, rdx\n";  // Clear the high bits
+                gen->m_output << "    mul rbx\n";
+                gen->push("rax");
+            }
+
+            void operator()(
+                const node::BinExprDivision* expr_binary_div) const {
+                gen->gen_expr(expr_binary_div->left);
+                gen->gen_expr(expr_binary_div->right);
+
+                gen->pop("rbx");
+                gen->pop("rax");
+                gen->m_output << "    cqo\n";
+                gen->m_output << "    idiv rbx\n";
+                gen->push("rax");
             }
         };
 
         std::visit(BinExprVisitor{this}, bin_expr->var);
     }
 
-    void gen_expr(const node::Expr* expr) {
+    void gen_expr(const node::Expr* expression) {
         struct ExprVisitor {
             Generator* gen;
 
@@ -75,42 +113,42 @@ class Generator {
             }
         };
 
-        std::visit(ExprVisitor{this}, expr->var);
+        std::visit(ExprVisitor{this}, expression->var);
     }
 
-    void gen_stmt(const node::Stmt* stmt) {
+    void gen_stmt(const node::Stmt* statement) {
         struct StmtVisitor {
             Generator* gen;
 
             void operator()(const node::StmtExit* stmt_exit) const {
-                gen->gen_expr(stmt_exit->expr);
+                gen->gen_expr(stmt_exit->expression);
                 gen->m_output << "    mov rax, 60\n";
                 gen->pop("rdi");
                 gen->m_output << "    syscall\n";
             }
 
-            void operator()(const node::StmtLet* stmt_let) const {
-                if (gen->m_vars.contains(stmt_let->ident.value)) {
+            void operator()(const node::StmtLet* statement_let) const {
+                if (gen->m_vars.find(statement_let->identifier.value) != gen->m_vars.end()) {
                     std::cerr << "Variable already declared: "
-                              << stmt_let->ident.value << "\n";
+                              << statement_let->identifier.value << "\n";
                     exit(EXIT_FAILURE);
                 }
 
-                gen->m_vars.insert(
-                    {stmt_let->ident.value, Var{gen->m_stack_pointer}});
-                gen->gen_expr(stmt_let->expr);
+                gen->m_vars.insert({statement_let->identifier.value,
+                                    Var{gen->m_stack_pointer}});
+                gen->gen_expr(statement_let->expression);
             }
         };
 
-        std::visit(StmtVisitor{this}, stmt->var);
+        std::visit(StmtVisitor{this}, statement->var);
     }
 
     [[nodiscard]] std::string gen_prog() {
         m_output << "global _start\n\n_start:\n";
 
         // Parse: start
-        for (const auto& stmt : m_prog.stmts) {
-            gen_stmt(stmt);
+        for (const auto& statement : m_prog.statements) {
+            gen_stmt(statement);
         }
         // Parse: end
 
