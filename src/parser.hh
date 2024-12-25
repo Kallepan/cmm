@@ -18,6 +18,10 @@ struct TermIdent {
 
 struct Expr;
 
+struct TermParen {
+    Expr* expression;
+};
+
 struct BinExprAddition {
     Expr* left;
     Expr* right;
@@ -45,7 +49,7 @@ struct BinExpr {
 };
 
 struct Term {
-    std::variant<TermIntLit*, TermIdent*> var;
+    std::variant<TermIntLit*, TermIdent*, TermParen*> var;
 };
 
 struct Expr {
@@ -93,6 +97,24 @@ class Parser {
 
             auto term = m_allocator.allocate<node::Term>();
             term->var = term_ident;
+            return term;
+        }
+
+        if (auto open_paren = try_consume(TokenType::OPEN_PAREN)) {
+            auto term_paren = m_allocator.allocate<node::TermParen>();
+            auto expr = parse_expr();
+
+            if (!expr.has_value()) {
+                std::cerr << "Syntax error: expected expression after (\n";
+                exit(EXIT_FAILURE);
+            }
+
+            term_paren->expression = expr.value();
+
+            try_consume(TokenType::CLOSE_PAREN, "Syntax error: expected )\n");
+
+            auto term = m_allocator.allocate<node::Term>();
+            term->var = term_paren;
             return term;
         }
 
