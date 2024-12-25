@@ -15,17 +15,16 @@ class Generator {
         struct TermVisitor {
             Generator* gen;
             void operator()(const node::TermIntLit* term_int_lit) const {
-                gen->m_output << "    mov rax, " << term_int_lit->integer_literal.value
-                              << "\n";
+                gen->m_output << "    mov rax, "
+                              << term_int_lit->integer_literal.value << "\n";
                 gen->push("rax");
             }
 
             void operator()(const node::TermIdent* term_ident) const {
                 if (gen->m_vars.find(term_ident->identifier.value) ==
                     gen->m_vars.end()) {
-                    std::cerr
-                        << "Variable not declared: " << term_ident->identifier.value
-                        << "\n";
+                    std::cerr << "Variable not declared: "
+                              << term_ident->identifier.value << "\n";
                     exit(EXIT_FAILURE);
                 }
 
@@ -44,9 +43,10 @@ class Generator {
         struct BinExprVisitor {
             Generator* gen;
 
-            void operator()(const node::BinExprAddition* expr_binary_addition) const {
-                gen->gen_expr(expr_binary_addition->left);
+            void operator()(
+                const node::BinExprAddition* expr_binary_addition) const {
                 gen->gen_expr(expr_binary_addition->right);
+                gen->gen_expr(expr_binary_addition->left);
 
                 gen->pop("rax");
                 gen->pop("rbx");
@@ -54,13 +54,38 @@ class Generator {
                 gen->push("rax");
             }
 
-            void operator()(const node::BinExprMultiply* expr_binary_multiply) const {
+            void operator()(
+                const node::BinExprSubtraction* expr_binary_sub) const {
+                gen->gen_expr(expr_binary_sub->right);
+                gen->gen_expr(expr_binary_sub->left);
+
+                gen->pop("rax");
+                gen->pop("rbx");
+                gen->m_output << "    sub rax, rbx\n";
+                gen->push("rax");
+            }
+
+            void operator()(
+                const node::BinExprMultiplication* expr_binary_multiply) const {
                 gen->gen_expr(expr_binary_multiply->left);
                 gen->gen_expr(expr_binary_multiply->right);
 
                 gen->pop("rax");
                 gen->pop("rbx");
+                gen->m_output << "    xor rdx, rdx\n";  // Clear the high bits
                 gen->m_output << "    mul rbx\n";
+                gen->push("rax");
+            }
+
+            void operator()(
+                const node::BinExprDivision* expr_binary_div) const {
+                gen->gen_expr(expr_binary_div->left);
+                gen->gen_expr(expr_binary_div->right);
+
+                gen->pop("rbx");
+                gen->pop("rax");
+                gen->m_output << "    cqo\n";
+                gen->m_output << "    idiv rbx\n";
                 gen->push("rax");
             }
         };
@@ -102,8 +127,8 @@ class Generator {
                     exit(EXIT_FAILURE);
                 }
 
-                gen->m_vars.insert(
-                    {statement_let->identifier.value, Var{gen->m_stack_pointer}});
+                gen->m_vars.insert({statement_let->identifier.value,
+                                    Var{gen->m_stack_pointer}});
                 gen->gen_expr(statement_let->expression);
             }
         };

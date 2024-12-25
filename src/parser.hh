@@ -23,13 +23,25 @@ struct BinExprAddition {
     Expr* right;
 };
 
-struct BinExprMultiply {
+struct BinExprMultiplication {
+    Expr* left;
+    Expr* right;
+};
+
+struct BinExprSubtraction {
+    Expr* left;
+    Expr* right;
+};
+
+struct BinExprDivision {
     Expr* left;
     Expr* right;
 };
 
 struct BinExpr {
-    std::variant<BinExprAddition*, BinExprMultiply*> var;
+    std::variant<BinExprAddition*, BinExprMultiplication*, BinExprSubtraction*,
+                 BinExprDivision*>
+        var;
 };
 
 struct Term {
@@ -130,15 +142,36 @@ class Parser {
                 expr_binary_addition->right = expr_rhs.value();
 
                 bin_expr->var = expr_binary_addition;
+            } else if (operator_token.type == TokenType::SUBTRACT) {
+                expr_lhs->var = expression->var;
+
+                auto expr_binary_subtraction =
+                    m_allocator.allocate<node::BinExprSubtraction>();
+                expr_binary_subtraction->left = expr_lhs;
+                expr_binary_subtraction->right = expr_rhs.value();
+
+                bin_expr->var = expr_binary_subtraction;
+            } else if (operator_token.type == TokenType::DIVIDE) {
+                expr_lhs->var = expression->var;
+
+                auto expr_binary_division =
+                    m_allocator.allocate<node::BinExprDivision>();
+                expr_binary_division->left = expr_lhs;
+                expr_binary_division->right = expr_rhs.value();
+
+                bin_expr->var = expr_binary_division;
             } else if (operator_token.type == TokenType::MULTIPLY) {
                 expr_lhs->var = expression->var;
 
-                auto expr_binary_multiply =
-                    m_allocator.allocate<node::BinExprMultiply>();
-                expr_binary_multiply->left = expr_lhs;
-                expr_binary_multiply->right = expr_rhs.value();
+                auto expr_binary_multiplication =
+                    m_allocator.allocate<node::BinExprMultiplication>();
+                expr_binary_multiplication->left = expr_lhs;
+                expr_binary_multiplication->right = expr_rhs.value();
 
-                bin_expr->var = expr_binary_multiply;
+                bin_expr->var = expr_binary_multiplication;
+            } else {
+                std::cerr << "Syntax error: unknown operator\n";
+                exit(EXIT_FAILURE);
             }
 
             expression->var = bin_expr;
@@ -176,7 +209,8 @@ class Parser {
             try_consume(TokenType::IDENT, false, 1) &&
             try_consume(TokenType::EQ, false, 2)) {
             consume();
-            node::StmtLet* statement_let = m_allocator.allocate<node::StmtLet>();
+            node::StmtLet* statement_let =
+                m_allocator.allocate<node::StmtLet>();
             statement_let->identifier = consume();
             consume();
             if (auto node_expr = parse_expr()) {
