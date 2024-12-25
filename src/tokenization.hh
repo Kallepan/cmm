@@ -20,6 +20,13 @@ class Tokenizer {
         std::vector<Token> tokens;
         std::string token_buff;
 
+        // Helper function to consume characters while a condition is met
+        auto consume_while = [&](auto condition) {
+            while (peek().has_value() && condition(peek().value())) {
+                token_buff.push_back(consume());
+            }
+        };
+
         // Continue looking for tokens until the end of the source
         while (peek().has_value()) {
             char c = peek().value();
@@ -40,16 +47,15 @@ class Tokenizer {
             // Identifier
             if (std::isalpha(c)) {
                 token_buff.push_back(consume());
-                while (peek().has_value() && std::isalnum(peek().value())) {
-                    token_buff.push_back(consume());
-                }
+                consume_while([](char c) { return std::isalnum(c); });
 
-                // Handle token
+                // Handle keywords
                 if (token_buff == "exit") {
                     tokens.push_back({TokenType::EXIT, token_buff});
                     token_buff.clear();
                     continue;
-                } else if (token_buff == "let") {
+                }
+                if (token_buff == "let") {
                     tokens.push_back({TokenType::LET, token_buff});
                     token_buff.clear();
                     continue;
@@ -63,9 +69,7 @@ class Tokenizer {
             // Number
             if (std::isdigit(c)) {
                 token_buff.push_back(consume());
-                while (peek().has_value() && std::isdigit(peek().value())) {
-                    token_buff.push_back(consume());
-                }
+                consume_while([](char c) { return std::isdigit(c); });
 
                 if (!std::isdigit(token_buff[0])) {
                     std::cerr << "Syntax error: " << token_buff
@@ -102,17 +106,17 @@ class Tokenizer {
             }
             if (c == '-') {
                 consume();
-                tokens.push_back({TokenType::SUBTRACT, "-"});
+                tokens.push_back({TokenType::MINUS, "-"});
                 continue;
             }
             if (c == '*') {
                 consume();
-                tokens.push_back({TokenType::MULTIPLY, "*"});
+                tokens.push_back({TokenType::STAR, "*"});
                 continue;
             }
             if (c == '/') {
                 consume();
-                tokens.push_back({TokenType::DIVIDE, "/"});
+                tokens.push_back({TokenType::FORWARD_SLASH, "/"});
                 continue;
             }
 

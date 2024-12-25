@@ -164,7 +164,7 @@ class Parser {
                 expr_binary_addition->right = expr_rhs.value();
 
                 bin_expr->var = expr_binary_addition;
-            } else if (operator_token.type == TokenType::SUBTRACT) {
+            } else if (operator_token.type == TokenType::MINUS) {
                 expr_lhs->var = expression->var;
 
                 auto expr_binary_subtraction =
@@ -173,7 +173,7 @@ class Parser {
                 expr_binary_subtraction->right = expr_rhs.value();
 
                 bin_expr->var = expr_binary_subtraction;
-            } else if (operator_token.type == TokenType::DIVIDE) {
+            } else if (operator_token.type == TokenType::FORWARD_SLASH) {
                 expr_lhs->var = expression->var;
 
                 auto expr_binary_division =
@@ -182,7 +182,7 @@ class Parser {
                 expr_binary_division->right = expr_rhs.value();
 
                 bin_expr->var = expr_binary_division;
-            } else if (operator_token.type == TokenType::MULTIPLY) {
+            } else if (operator_token.type == TokenType::STAR) {
                 expr_lhs->var = expression->var;
 
                 auto expr_binary_multiplication =
