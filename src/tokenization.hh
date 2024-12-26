@@ -67,17 +67,11 @@ class Tokenizer {
                 continue;
             }
 
-            // Number
-            if (std::isdigit(c)) {
+            // Numbers
+            if ((c == '-' && std::isdigit(peek(1).value())) ||
+                std::isdigit(c)) {
                 token_buff.push_back(consume());
                 consume_while([](char c) { return std::isdigit(c); });
-
-                if (!std::isdigit(token_buff[0])) {
-                    std::cerr << "Syntax error: " << token_buff
-                              << " at line: " << m_line_number << "\n";
-
-                    exit(EXIT_FAILURE);
-                }
 
                 tokens.push_back({TokenType::INT_LIT, token_buff});
                 token_buff.clear();
