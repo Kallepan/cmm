@@ -33,9 +33,8 @@ class Tokenizer {
 
             // New line
             if (c == '\n') {
-                m_line_number++;
+                handle_new_line();
                 consume();
-                m_col_number = 0;
                 continue;
             }
 
@@ -66,8 +65,7 @@ class Tokenizer {
 
                     // Handle new lines in comments
                     if (peek().value() == '\n') {
-                        m_line_number++;
-                        m_col_number = 0;
+                        handle_new_line();
                     }
 
                     consume();
@@ -205,6 +203,15 @@ class Tokenizer {
     char consume() {
         m_col_number++;
         return m_src.at(m_index++);
+    }
+
+    void handle_new_line() {
+#ifdef DEBUG
+        std::cout << "New line at: " << m_line_number << " with "
+                  << m_col_number << " columns\n";
+#endif
+        m_line_number++;
+        m_col_number = 0;
     }
 
     const std::string m_src;
