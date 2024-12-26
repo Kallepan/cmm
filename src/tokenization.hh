@@ -63,6 +63,13 @@ class Tokenizer {
                         consume();
                         break;
                     }
+
+                    // Handle new lines in comments
+                    if (peek().value() == '\n') {
+                        m_line_number++;
+                        m_col_number = 0;
+                    }
+
                     consume();
                 }
                 continue;
