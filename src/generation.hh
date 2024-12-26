@@ -141,7 +141,7 @@ class Generator {
         // Load the length of the string into rcx
         m_start << "    mov rcx, string" << current_string_counter << "_len"
                 << "\n";
-        m_start << "    call add_to_buffer\n";
+        m_start << "    call check_and_add_to_buffer\n";
     }
 
     void gen_expr(const node::Expr* expression) {
@@ -166,8 +166,9 @@ class Generator {
 
             void operator()(const node::Expr* expression) const {
                 gen.gen_expr(expression);
-
-                assert(false && "Not implemented yet");
+                gen.m_start << "    mov rsi, QWORD [rsp]\n";
+                gen.m_start << "    call print_int\n";
+                gen.m_start << "    call print_newline\n";
             }
 
             void operator()(const node::StringLit* string_literal) const {
@@ -188,7 +189,7 @@ class Generator {
                 gen.m_start << "    call flush_buffer\n";
                 gen.m_start << "    mov rax, 60\n";
                 gen.pop("rdi");
-                gen.m_start << "    syscall\n";
+                gen.m_start << "    syscall\n\n";
             }
 
             void operator()(const node::StmtPrint* statement_print) const {
@@ -238,7 +239,10 @@ class Generator {
     }
 
     [[nodiscard]] std::string gen_prog() {
-        m_start << "section .text\n    global _start\n\n_start:\n";
+        m_start << "section .text\n"
+                << "    global _start\n\n_start:\n"
+                << "    call initialize_buffer\n";
+
         m_data << "section .data\n"
                << "    newline db 10\n";
         std::ostringstream buffer;
@@ -246,49 +250,46 @@ class Generator {
                << "    buffer resb " << m_buffer_size << "\n"
                << "    buffer_used resq 1\n\n"
                << "    buffer_size equ " << m_buffer_size << "\n\n";
-        m_start << "    call initialize_buffer\n";
 
         // Functions
         std::string functions =
             "initialize_buffer:\n"
-            "    mov rdi, buffer\n"
-            "    mov rcx, buffer_size\n"
-            "    xor rax, rax\n"
-            "    rep stosb\n"
-            "    mov qword [buffer_used], 0\n"
+            "    mov qword [buffer_used], 0\n"  // Reset buffer_used
             "\ncheck_and_add_to_buffer:\n"
             // Check if print buffer would overflow
-            "    mov rax, [buffer_used]\n"
-            "    add rax, rcx\n"
-            "    cmp rax, buffer_size\n"
-            "    jle add_to_buffer\n"
-            "    call flush_buffer\n"
-            "    mov qword [buffer_used], 0\n"
-            "    jmp add_to_buffer\n"
+            "    mov rax, [buffer_used]\n"  // rax = buffer_used
+            "    add rax, rcx\n"            // rax = buffer_used + string_length
+            "    cmp rax, buffer_size\n"  // Compare buffer_used + string_length
+                                          // with buffer_size
+            "    jle add_to_buffer\n"     // If buffer_used + string_length <=
+                                          // buffer_size, add string to buffer
+            "    call flush_buffer\n"     // If buffer_used + string_length >
+                                          // buffer_size, flush buffer
+            "    call initialize_buffer\n"  // Reset buffer_used
+            "    jmp add_to_buffer\n"       // Add string to buffer
             "\nadd_to_buffer:\n"
             // Add string to buffer
-            "    mov rax, [buffer_used]\n"
-            "    lea rdi, [buffer + rax]\n"
-            "    add qword [buffer_used], rcx\n"
-            "    rep movsb\n"
+            "    mov rax, [buffer_used]\n"        // rax = buffer_used
+            "    lea rdi, [buffer + rax]\n"       // rdi = buffer + buffer_used
+            "    add qword [buffer_used], rcx\n"  // buffer_used +=
+                                                  // string_length
+            "    rep movsb\n"                     // Copy string to buffer
             "    ret\n"
             "\nflush_buffer:\n"
-            // Add newline to buffer
-            "    lea rsi, [newline]\n"
-            "    mov rcx, 1\n"
-            "    call add_to_buffer\n"
             // Write buffer to stdout
-            "    mov rdi, 1\n"
-            "    mov rax, 1\n"
-            "    lea rsi, [buffer]\n"
-            "    mov rdx, [buffer_used]\n"
-            "    syscall\n"
-            "    test rax, rax\n"
-            "    jge syscall_error\n"
+            "    lea rsi, [buffer]\n"       // rsi = buffer
+            "    mov rdx, [buffer_used]\n"  // rdx = buffer_used
+            "    call print_chars\n"
+            "    call print_newline\n"
             "    ret\n"
-            "\nsyscall_error:\n"
-            "    mov rax, 60\n"
-            "    mov rdi, 1\n"
+            "print_newline:\n"
+            "    mov rsi, newline\n"  // rsi = newline
+            "    mov rdx, 1\n"        // rdx = 1
+            "    call print_chars\n"
+            "    ret\n"
+            "print_chars:\n"
+            "    mov rdi, 1\n"  // rdi = stdout
+            "    mov rax, 1\n"  // rax = sys_write
             "    syscall\n"
             "    ret\n"
             "\n";
@@ -300,9 +301,14 @@ class Generator {
         // Parse: end
 
         //  Default exit
+        if (m_prog.statements.empty() ||
+            !std::holds_alternative<node::StmtExit*>(
+                m_prog.statements.back()->var)) {
+            m_start << "    call print_chars\n";
+            m_start << "    mov rdi, 0\n";
         m_start << "    mov rax, 60\n";
-        m_start << "    mov rdi, 0\n";
         m_start << "    syscall\n\n";
+        }
 
         return m_data.str() + buffer.str() + m_start.str() + functions;
     }
