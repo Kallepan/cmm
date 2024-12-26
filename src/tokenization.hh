@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "config.hh"
 #include "token_type.hh"
 
 struct Token {
@@ -144,6 +145,11 @@ class Tokenizer {
                     token_buff.push_back(consume());
                 }
                 consume();
+                if (token_buff.size() > MAX_STRING_SIZE) {
+                    std::cerr << "String too long at column: " << m_col_number
+                              << " at line: " << m_line_number << "\n";
+                    exit(EXIT_FAILURE);
+                }
                 tokens.push_back({TokenType::STRING_LIT, token_buff});
                 token_buff.clear();
                 continue;

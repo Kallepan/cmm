@@ -5,6 +5,7 @@
 #include <sstream>
 #include <utility>
 
+#include "config.hh"
 #include "parser.hh"
 
 class Generator {
@@ -336,5 +337,5 @@ class Generator {
     std::vector<size_t> m_stack_scopes;  // Keeps track of the stack scopes
     size_t m_label_counter = 0;          // Keeps track of the number of labels
     size_t m_string_counter = 0;         // Keeps track of the number of strings
-    const size_t m_buffer_size = 4096;   // Buffer size
+    const size_t m_buffer_size = PRINT_BUFFER_SIZE;  // Buffer size
 };

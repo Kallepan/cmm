@@ -14,7 +14,7 @@ let a = -1;
 if(a + 1) {
     exit(100);
 }
-print("this is a string");
+print("this is a string. ");
 print("this is a string with a newline\n");
 // print(x); // TODO: Implement printing of variables
 let y = x + 5;
