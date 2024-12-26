@@ -33,8 +33,7 @@ class Tokenizer {
 
             // New line
             if (c == '\n') {
-                m_line_number++;
-                m_col_number = 0;
+                handle_new_line();
                 consume();
                 continue;
             }
@@ -42,6 +41,35 @@ class Tokenizer {
             // Skip whitespace
             if (std::isspace(c)) {
                 consume();
+                continue;
+            }
+
+            // Comments
+            if (c == '/' && peek(1).has_value() && peek(1).value() == '/') {
+                consume();
+                consume();
+                while (peek().has_value() && peek().value() != '\n') {
+                    consume();
+                }
+                continue;
+            }
+            if (c == '/' && peek(1).has_value() && peek(1).value() == '*') {
+                consume();
+                consume();
+                while (peek().has_value()) {
+                    if (peek().value() == '*' && peek(1).value() == '/') {
+                        consume();
+                        consume();
+                        break;
+                    }
+
+                    // Handle new lines in comments
+                    if (peek().value() == '\n') {
+                        handle_new_line();
+                    }
+
+                    consume();
+                }
                 continue;
             }
 
@@ -156,10 +184,11 @@ class Tokenizer {
             std::cout << "Token: " << token.type << ", Value: " << token.value
                       << "\n";
         }
+
+        std::cout << "Tokenization complete\n"
+                  << "file had " << m_line_number << " lines\n";
 #endif
         m_index = 0;
-        m_col_number = 1;
-        m_line_number = 1;
         return tokens;
     }
 
@@ -175,6 +204,15 @@ class Tokenizer {
     char consume() {
         m_col_number++;
         return m_src.at(m_index++);
+    }
+
+    void handle_new_line() {
+#ifdef DEBUG
+        std::cout << "New line at: " << m_line_number << " with "
+                  << m_col_number << " columns\n";
+#endif
+        m_line_number++;
+        m_col_number = 0;
     }
 
     const std::string m_src;
