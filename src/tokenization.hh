@@ -61,6 +61,11 @@ class Tokenizer {
                     token_buff.clear();
                     continue;
                 }
+                if (token_buff == "if") {
+                    tokens.push_back({TokenType::IF, token_buff});
+                    token_buff.clear();
+                    continue;
+                }
 
                 tokens.push_back({TokenType::IDENT, token_buff});
                 token_buff.clear();
@@ -137,7 +142,7 @@ class Tokenizer {
             // Syntax error, no token found
             std::cerr << "Syntax error: " << peek().value()
                       << " at column: " << m_col_number
-                      << " in line: " << m_line_number << "\n";
+                      << " at line: " << m_line_number << "\n";
             exit(EXIT_FAILURE);
         }
 
@@ -169,6 +174,6 @@ class Tokenizer {
 
     const std::string m_src;
     size_t m_index{0};
-    size_t m_col_number{1};
+    size_t m_col_number{0};
     size_t m_line_number{1};
 };

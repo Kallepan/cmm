@@ -5,8 +5,11 @@ $$
 [\text{Stmt}] &\to \begin{cases}
     \text{exit}([\text{Expr}]); \\ % Exit
     \text{let ident} = [\text{Expr}]; \\ % Let
-    \{[\text{Stmt}]^*\} \\ % Scope
+    \text{if} ([\text{Expr}]) [\text{Scope}] \text{else} [\text{Scope}] \\ % If
+    [\text{Scope}] \\ % Scope
 \end{cases} \\
+
+\text{[Scope]} &\to \{[\text{Stmt}]^*\} \\ % Scope
 
 [\text{Expr}] &\to
 \begin{cases}

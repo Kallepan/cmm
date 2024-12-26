@@ -67,12 +67,17 @@ struct StmtLet {
 
 struct Stmt;
 
-struct StmtScope {
+struct Scope {
     std::vector<Stmt*> statements;
 };
 
+struct StmtIf {
+    Expr* condition;
+    Scope* scope;
+};
+
 struct Stmt {
-    std::variant<StmtExit*, StmtLet*, StmtScope*> var;
+    std::variant<StmtExit*, StmtLet*, Scope*, StmtIf*> var;
 };
 
 struct Prog {
@@ -208,6 +213,22 @@ class Parser {
         return expression;
     }
 
+    std::optional<node::Scope*> parse_scope() {
+        if (try_consume(TokenType::OPEN_CURLY, "Syntax error: expected {\n")) {
+            node::Scope* scope = m_allocator.allocate<node::Scope>();
+
+            while (auto stmt = parse_stmt()) {
+                scope->statements.push_back(stmt.value());
+            }
+
+            try_consume(TokenType::CLOSE_CURLY, "Syntax error: expected }\n");
+
+            return scope;
+        }
+
+        return std::nullopt;
+    }
+
     std::optional<node::Stmt*> parse_stmt() {
         // Parse exit statement
         if (try_consume(TokenType::EXIT, false) &&
@@ -244,8 +265,8 @@ class Parser {
             if (auto node_expr = parse_expr()) {
                 statement_let->expression = node_expr.value();
             } else {
-                std::cerr << "Syntax error: expected integer literal after let"
-                          << "\n";
+                std::cerr
+                    << "Syntax error: expected integer literal after let\n";
                 exit(EXIT_FAILURE);
             }
 
@@ -258,22 +279,42 @@ class Parser {
 
         // Parse scope statement
         if (try_consume(TokenType::OPEN_CURLY, false)) {
-            consume();
-            node::StmtScope* statement_scope =
-                m_allocator.allocate<node::StmtScope>();
-
-            while (auto stmt = parse_stmt()) {
-                statement_scope->statements.push_back(stmt.value());
-            }
-
-            if (!try_consume(TokenType::CLOSE_CURLY, false)) {
+            auto scope = parse_scope();
+            if (!scope.has_value()) {
                 std::cerr << "Syntax error: expected statement\n";
                 exit(EXIT_FAILURE);
             }
-            consume();
 
             node::Stmt* statement = m_allocator.allocate<node::Stmt>();
-            statement->var = statement_scope;
+            statement->var = scope.value();
+            return statement;
+        }
+
+        // Parse if statement
+        if (try_consume(TokenType::IF, false) &&
+            try_consume(TokenType::OPEN_PAREN, false, 1)) {
+            consume();
+            consume();
+            node::StmtIf* stmt_if = m_allocator.allocate<node::StmtIf>();
+
+            auto node_expr = parse_expr();
+            if (!node_expr.has_value()) {
+                std::cerr << "Syntax error: expected expression after if\n";
+                exit(EXIT_FAILURE);
+            }
+            stmt_if->condition = node_expr.value();
+
+            try_consume(TokenType::CLOSE_PAREN, "Syntax error: expected )\n");
+
+            auto scope = parse_scope();
+            if (!scope.has_value()) {
+                std::cerr << "Syntax error: expected scope after if\n";
+                exit(EXIT_FAILURE);
+            }
+            stmt_if->scope = scope.value();
+
+            node::Stmt* statement = m_allocator.allocate<node::Stmt>();
+            statement->var = stmt_if;
             return statement;
         }
 

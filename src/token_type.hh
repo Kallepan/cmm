@@ -19,6 +19,8 @@ enum class TokenType {
     OPEN_CURLY,   // {
     CLOSE_CURLY,  // }
 
+    IF,    // if
+
     END_OF_LINE,  // ;
 };
 
@@ -57,6 +59,8 @@ constexpr const char* toString(TokenType tokenType) {
         case TokenType::CLOSE_CURLY:
             return "CLOSE_CURLY";
 
+        case TokenType::IF:
+            return "IF";
         case TokenType::END_OF_LINE:
             return "END_OF_LINE";
 
