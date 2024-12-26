@@ -142,7 +142,6 @@ class Generator {
         m_start << "    mov rcx, string" << current_string_counter << "_len"
                 << "\n";
         m_start << "    call add_to_buffer\n";
-        m_start << "    call flush_buffer\n";
     }
 
     void gen_expr(const node::Expr* expression) {
@@ -186,6 +185,7 @@ class Generator {
             void operator()(const node::StmtExit* statement_exit) const {
                 gen.gen_expr(statement_exit->expression);
 
+                gen.m_start << "    call flush_buffer\n";
                 gen.m_start << "    mov rax, 60\n";
                 gen.pop("rdi");
                 gen.m_start << "    syscall\n";
@@ -244,24 +244,35 @@ class Generator {
         std::ostringstream buffer;
         buffer << "section .bss\n"
                << "    buffer resb " << m_buffer_size << "\n"
-               << "    buffer_used resq 1\n\n";
-        m_start << "    call initalize_buffer\n";
+               << "    buffer_used resq 1\n\n"
+               << "    buffer_size equ " << m_buffer_size << "\n\n";
+        m_start << "    call initialize_buffer\n";
 
         // Functions
         std::string functions =
-            "initalize_buffer:\n"
+            "initialize_buffer:\n"
             "    mov rdi, buffer\n"
-            "    mov rcx, 4096\n"
+            "    mov rcx, buffer_size\n"
             "    xor rax, rax\n"
             "    rep stosb\n"
             "    mov qword [buffer_used], 0\n"
+            "\ncheck_and_add_to_buffer:\n"
+            // Check if print buffer would overflow
+            "    mov rax, [buffer_used]\n"
+            "    add rax, rcx\n"
+            "    cmp rax, buffer_size\n"
+            "    jle add_to_buffer\n"
+            "    call flush_buffer\n"
+            "    mov qword [buffer_used], 0\n"
+            "    jmp add_to_buffer\n"
             "\nadd_to_buffer:\n"
+            // Add string to buffer
             "    mov rax, [buffer_used]\n"
             "    lea rdi, [buffer + rax]\n"
             "    add qword [buffer_used], rcx\n"
             "    rep movsb\n"
-            "    ret\n\n"
-            "flush_buffer:\n"
+            "    ret\n"
+            "\nflush_buffer:\n"
             // Add newline to buffer
             "    lea rsi, [newline]\n"
             "    mov rcx, 1\n"
@@ -272,8 +283,13 @@ class Generator {
             "    lea rsi, [buffer]\n"
             "    mov rdx, [buffer_used]\n"
             "    syscall\n"
-            // Reset buffer
-            "    call initalize_buffer\n"
+            "    test rax, rax\n"
+            "    jge syscall_error\n"
+            "    ret\n"
+            "\nsyscall_error:\n"
+            "    mov rax, 60\n"
+            "    mov rdi, 1\n"
+            "    syscall\n"
             "    ret\n"
             "\n";
 
