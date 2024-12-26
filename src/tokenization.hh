@@ -118,7 +118,17 @@ class Tokenizer {
             if ((c == '-' && std::isdigit(peek(1).value())) ||
                 std::isdigit(c)) {
                 token_buff.push_back(consume());
-                consume_while([](char c) { return std::isdigit(c); });
+                while (peek().has_value()) {
+                    if (peek().value() == '_' && peek(1).has_value() &&
+                        std::isdigit(peek(1).value())) {
+                        consume();
+                        continue;
+                    }
+                    if (!std::isdigit(peek().value())) {
+                        break;
+                    }
+                    token_buff.push_back(consume());
+                }
 
                 tokens.push_back({TokenType::INT_LIT, token_buff});
                 token_buff.clear();
