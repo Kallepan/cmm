@@ -5,6 +5,7 @@
 #include <sstream>
 #include <utility>
 
+#include "config.hh"
 #include "parser.hh"
 
 class Generator {
@@ -123,7 +124,7 @@ class Generator {
 
         for (const char c : string_literal) {
             if (c == '\n') {
-                m_data << "', 13, 10, '";
+                m_data << "', 10, '";
                 continue;
             }
 
@@ -140,8 +141,7 @@ class Generator {
         // Load the length of the string into rcx
         m_start << "    mov rcx, string" << current_string_counter << "_len"
                 << "\n";
-        m_start << "    call add_to_buffer\n";
-        m_start << "    call flush_buffer\n";
+        m_start << "    call check_and_add_to_buffer\n";
     }
 
     void gen_expr(const node::Expr* expression) {
@@ -166,8 +166,9 @@ class Generator {
 
             void operator()(const node::Expr* expression) const {
                 gen.gen_expr(expression);
-
-                assert(false && "Not implemented yet");
+                gen.m_start << "    mov rsi, QWORD [rsp]\n";
+                gen.m_start << "    call print_int\n";
+                gen.m_start << "    call print_newline\n";
             }
 
             void operator()(const node::StringLit* string_literal) const {
@@ -185,9 +186,10 @@ class Generator {
             void operator()(const node::StmtExit* statement_exit) const {
                 gen.gen_expr(statement_exit->expression);
 
+                gen.m_start << "    call flush_buffer\n";
                 gen.m_start << "    mov rax, 60\n";
                 gen.pop("rdi");
-                gen.m_start << "    syscall\n";
+                gen.m_start << "    syscall\n\n";
             }
 
             void operator()(const node::StmtPrint* statement_print) const {
@@ -237,44 +239,133 @@ class Generator {
     }
 
     [[nodiscard]] std::string gen_prog() {
-        m_start << "section .text\n    global _start\n\n_start:\n";
+        m_start << "section .text\n"
+                << "    global _start\n\n_start:\n"
+                << "    call initialize_buffer\n";
+
         m_data << "section .data\n"
                << "    newline db 10\n";
         std::ostringstream buffer;
         buffer << "section .bss\n"
                << "    buffer resb " << m_buffer_size << "\n"
-               << "    buffer_used resq 1\n\n";
-        m_start << "    call initalize_buffer\n";
+               << "    buffer_used resq 1\n\n"
+               << "    buffer_size equ " << m_buffer_size << "\n\n";
 
         // Functions
         std::string functions =
-            "initalize_buffer:\n"
-            "    mov rdi, buffer\n"
-            "    mov rcx, 4096\n"
-            "    xor rax, rax\n"
-            "    rep stosb\n"
-            "    mov qword [buffer_used], 0\n"
+            "initialize_buffer:\n"
+            "    mov qword [buffer_used], 0\n"  // Reset buffer_used
+            "\ncheck_and_add_to_buffer:\n"
+            "    mov rax, [buffer_used]\n"  // rax = buffer_used
+            "    add rax, rcx\n"            // rax = buffer_used + string_length
+            "    cmp rax, buffer_size\n"  // Compare buffer_used + string_length
+                                          // with buffer_size
+            "    jle add_to_buffer\n"     // If buffer_used + string_length <=
+                                          // buffer_size, add string to buffer
+            "    call flush_buffer\n"     // If buffer_used + string_length >
+                                          // buffer_size, flush buffer
+            "    call initialize_buffer\n"  // Reset buffer_used
+            "    jmp add_to_buffer\n"       // Add string to buffer
             "\nadd_to_buffer:\n"
-            "    mov rax, [buffer_used]\n"
-            "    lea rdi, [buffer + rax]\n"
-            "    add qword [buffer_used], rcx\n"
-            "    rep movsb\n"
-            "    ret\n\n"
-            "flush_buffer:\n"
-            // Add newline to buffer
-            "    lea rsi, [newline]\n"
-            "    mov rcx, 1\n"
-            "    call add_to_buffer\n"
-            // Write buffer to stdout
-            "    mov rdi, 1\n"
-            "    mov rax, 1\n"
-            "    lea rsi, [buffer]\n"
-            "    mov rdx, [buffer_used]\n"
-            "    syscall\n"
-            // Reset buffer
-            "    call initalize_buffer\n"
+            "    mov rax, [buffer_used]\n"        // rax = buffer_used
+            "    lea rdi, [buffer + rax]\n"       // rdi = buffer + buffer_used
+            "    add qword [buffer_used], rcx\n"  // buffer_used +=
+                                                  // string_length
+            "    rep movsb\n"                     // Copy string to buffer
             "    ret\n"
-            "\n";
+            "\nflush_buffer:\n"
+            "    lea rsi, [buffer]\n"       // rsi = buffer
+            "    mov rdx, [buffer_used]\n"  // rdx = buffer_used
+            "    call print_chars\n"
+            "    call print_newline\n"
+            "    ret\n"
+            "print_newline:\n"
+            "    mov rsi, newline\n"  // rsi = newline
+            "    mov rdx, 1\n"        // rdx = 1
+            "    call print_chars\n"
+            "    ret\n"
+            "print_chars:\n"
+            "    mov rdi, 1\n"  // rdi = stdout
+            "    mov rax, 1\n"  // rax = sys_write
+            "    syscall\n"
+            "    ret\n"
+            "print_int_h:\n"
+            "    push rax\n"      // Save rax
+            "    push rbp\n"      // Save rbp
+            "    push rsi\n"      // Save rsi
+            "    push rdx\n"      // Save rdx
+            "    mov rbp, rsp\n"  // Save base pointer
+            ".loop:\n"
+            "    mov al, sil\n"        // Load the least significant digit
+            "    and al, 0x0F\n"       // Mask to get the last hex digit
+            "    cmp al, 9\n"          // Check if al > 9
+            "    jle .insert_digit\n"  // If al <= 9, insert digit
+            "    add al, 87\n"         // Convert to ASCII a-f (97 - 10)
+            "    jmp .insert_byte\n"
+            ".insert_digit:\n"
+            "    add al, 48\n"  // Convert to ASCII 0-9
+            ".insert_byte:\n"
+            "    dec rsp\n"  // Move the stack pointer
+            "    mov [rsp], al\n"
+            "    shr rsi, 4\n"  // Shift right 4 bits
+            "    test rsi, rsi\n"
+            "    jnz .loop\n"
+            "    dec rsp\n"              // Move the stack pointer
+            "    mov [rsp], byte 120\n"  // Insert x
+            "    dec rsp\n"              // Move the stack pointer
+            "    mov [rsp], byte 48\n"   // Insert 0
+            "    mov rdx, rbp\n"         // rdx = rsp
+            "    sub rdx, rsp\n"         // rdx = rsp - rbp
+            "    lea rsi, [rsp]\n"  // rsi = rsp
+            "    mov rdx, rdx\n"    // rdx = rdx
+            "    call print_chars\n"
+            "    mov rsp, rbp\n"  // Restore stack pointer
+            "    pop rdx\n"       // Restore rdx
+            "    pop rsi\n"       // Restore rsi
+            "    pop rbp\n"       // Restore rbp
+            "    pop rax\n"       // Restore rax
+            "    ret\n"
+            "print_int:\n"
+            "    push rax\n"       // Save rax
+            "    push rbp\n"       // Save rbp
+            "    push rsi\n"       // Save rsi
+            "    push rdx\n"       // Save rdx
+            "    push r8\n"        // Save r8
+            "    mov r8, rsi\n"    // move original rsi to r8
+            "    mov rax, rsi\n"   // rax = rsi
+            "    test rax, rax\n"  // Check if rsi is negative
+            "    jns .positive\n"  // If rsi is positive, jump to .positive
+            "    neg rax\n"        // Negate rsi
+            ".positive:\n"
+            "    mov rsi, 10\n"   // Clear rsi
+            "    mov rbp, rsp\n"  // Save base pointer
+            ".loop:\n"
+            "    xor rdx, rdx\n"      // Clear rdx
+            "    div rsi\n"           // Divide rax by rsi
+            "    add dl, 48\n"        // Convert to ASCII
+            "    dec rsp\n"           // Move the stack pointer
+            "    mov [rsp], dl\n"     // Insert digit
+            "    test rax, rax\n"     // Check if rax is zero
+            "    jnz .loop\n"         // If rax is not zero, jump to .loop
+            "    test r8, r8\n"       // Check if r8 is negative
+            "    jns .no_neg_sign\n"  // If r8 is positive, jump to .no_neg_sign
+            "    dec rsp\n"           // Move the stack pointer
+            "    mov [rsp], byte 45\n"  // Insert -
+            ".no_neg_sign:\n"
+            "    mov rdx, rbp\n"  // rdx = rsp
+            "    sub rdx, rsp\n"  // rdx = rsp - rbp
+            "    mov rsi, rsp\n"  // rsi = rsp
+            "    mov rdx, rdx\n"  // rdx = rdx
+            "    call print_chars\n"
+            "    mov rsp, rbp\n"  // Restore stack pointer
+            "    pop r8\n"        // Restore r8
+            "    pop rdx\n"       // Restore rdx
+            "    pop rsi\n"       // Restore rsi
+            "    pop rbp\n"       // Restore rbp
+            "    pop rax\n"       // Restore rax
+            "    ret\n";
+
+        "\n";
 
         // Parse: start
         for (const auto& statement : m_prog.statements) {
@@ -283,9 +374,14 @@ class Generator {
         // Parse: end
 
         //  Default exit
-        m_start << "    mov rax, 60\n";
-        m_start << "    mov rdi, 0\n";
-        m_start << "    syscall\n\n";
+        if (m_prog.statements.empty() ||
+            !std::holds_alternative<node::StmtExit*>(
+                m_prog.statements.back()->var)) {
+            m_start << "    call print_chars\n";
+            m_start << "    mov rdi, 0\n";
+            m_start << "    mov rax, 60\n";
+            m_start << "    syscall\n\n";
+        }
 
         return m_data.str() + buffer.str() + m_start.str() + functions;
     }
@@ -336,5 +432,5 @@ class Generator {
     std::vector<size_t> m_stack_scopes;  // Keeps track of the stack scopes
     size_t m_label_counter = 0;          // Keeps track of the number of labels
     size_t m_string_counter = 0;         // Keeps track of the number of strings
-    const size_t m_buffer_size = 4096;   // Buffer size
+    const size_t m_buffer_size = PRINT_BUFFER_SIZE;  // Buffer size
 };
