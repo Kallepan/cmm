@@ -34,14 +34,37 @@ class Tokenizer {
             // New line
             if (c == '\n') {
                 m_line_number++;
-                m_col_number = 0;
                 consume();
+                m_col_number = 0;
                 continue;
             }
 
             // Skip whitespace
             if (std::isspace(c)) {
                 consume();
+                continue;
+            }
+
+            // Comments
+            if (c == '/' && peek(1).has_value() && peek(1).value() == '/') {
+                consume();
+                consume();
+                while (peek().has_value() && peek().value() != '\n') {
+                    consume();
+                }
+                continue;
+            }
+            if (c == '/' && peek(1).has_value() && peek(1).value() == '*') {
+                consume();
+                consume();
+                while (peek().has_value()) {
+                    if (peek().value() == '*' && peek(1).value() == '/') {
+                        consume();
+                        consume();
+                        break;
+                    }
+                    consume();
+                }
                 continue;
             }
 
