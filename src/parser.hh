@@ -134,7 +134,7 @@ class Parser {
 
     // Function takes the minimum precedence level (default 0) and returns the
     // corresponding expression
-    std::optional<node::Expr*> parse_expr(int minimum_precedence = 0) {
+    std::optional<node::Expr*> parse_expr(size_t minimum_precedence = 0) {
         std::optional<node::Term*> term_lhs = parse_term();
         if (!term_lhs.has_value()) {
             return std::nullopt;
@@ -149,14 +149,14 @@ class Parser {
                 break;
             }
 
-            std::optional<int> precedence = bin_prec(next_token->type);
+            std::optional<size_t> precedence = bin_prec(next_token->type);
             if (!precedence.has_value() ||
                 precedence.value() < minimum_precedence) {
                 break;
             }
 
             Token operator_token = consume();
-            int next_minimum_precedence = precedence.value() + 1;
+            size_t next_minimum_precedence = precedence.value() + 1;
             auto expr_rhs = parse_expr(next_minimum_precedence);
             if (!expr_rhs.has_value()) {
                 std::cerr
