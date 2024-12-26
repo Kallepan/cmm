@@ -16,7 +16,9 @@ if(a + 1) {
 }
 print("this is a string. ");
 print("this is a string with a newline\n");
-// print(x); // TODO: Implement printing of variables
 let y = x + 5;
+print(-1_000); // TODO: Implement printing of variables
+print(y);
+print(10);
 {}{}{}{}{}{}
-exit(x);
+exit(x - 2);

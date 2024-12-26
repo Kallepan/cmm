@@ -292,7 +292,85 @@ class Generator {
             "    mov rax, 1\n"  // rax = sys_write
             "    syscall\n"
             "    ret\n"
-            "\n";
+            "print_int_h:\n"
+            "    push rax\n"      // Save rax
+            "    push rbp\n"      // Save rbp
+            "    push rsi\n"      // Save rsi
+            "    push rdx\n"      // Save rdx
+            "    mov rbp, rsp\n"  // Save base pointer
+            ".loop:\n"
+            "    mov al, sil\n"        // Load the least significant digit
+            "    and al, 0x0F\n"       // Mask to get the last hex digit
+            "    cmp al, 9\n"          // Check if al > 9
+            "    jle .insert_digit\n"  // If al <= 9, insert digit
+            "    add al, 87\n"         // Convert to ASCII a-f (97 - 10)
+            "    jmp .insert_byte\n"
+            ".insert_digit:\n"
+            "    add al, 48\n"  // Convert to ASCII 0-9
+            ".insert_byte:\n"
+            "    dec rsp\n"  // Move the stack pointer
+            "    mov [rsp], al\n"
+            "    shr rsi, 4\n"  // Shift right 4 bits
+            "    test rsi, rsi\n"
+            "    jnz .loop\n"
+            "    dec rsp\n"              // Move the stack pointer
+            "    mov [rsp], byte 120\n"  // Insert x
+            "    dec rsp\n"              // Move the stack pointer
+            "    mov [rsp], byte 48\n"   // Insert 0
+            "    mov rdx, rbp\n"         // rdx = rsp
+            "    sub rdx, rsp\n"         // rdx = rsp - rbp
+            // Write buffer to stdout
+            "    lea rsi, [rsp]\n"  // rsi = rsp
+            "    mov rdx, rdx\n"    // rdx = rdx
+            "    call print_chars\n"
+            "    mov rsp, rbp\n"  // Restore stack pointer
+            "    pop rdx\n"       // Restore rdx
+            "    pop rsi\n"       // Restore rsi
+            "    pop rbp\n"       // Restore rbp
+            "    pop rax\n"       // Restore rax
+            "    ret\n"
+            "print_int:\n"
+            "    push rax\n"       // Save rax
+            "    push rbp\n"       // Save rbp
+            "    push rsi\n"       // Save rsi
+            "    push rdx\n"       // Save rdx
+            "    push r8\n"        // Save r8
+            "    mov r8, rsi\n"    // move original rsi to r8
+            "    mov rax, rsi\n"   // rax = rsi
+            "    test rax, rax\n"  // Check if rsi is negative
+            "    jns .positive\n"  // If rsi is positive, jump to .positive
+            "    neg rax\n"        // Negate rsi
+            ".positive:\n"
+            "    mov rsi, 10\n"   // Clear rsi
+            "    mov rbp, rsp\n"  // Save base pointer
+            ".loop:\n"
+            "    xor rdx, rdx\n"      // Clear rdx
+            "    div rsi\n"           // Divide rax by rsi
+            "    add dl, 48\n"        // Convert to ASCII
+            "    dec rsp\n"           // Move the stack pointer
+            "    mov [rsp], dl\n"     // Insert digit
+            "    test rax, rax\n"     // Check if rax is zero
+            "    jnz .loop\n"         // If rax is not zero, jump to .loop
+            "    test r8, r8\n"       // Check if r8 is negative
+            "    jns .no_neg_sign\n"  // If r8 is positive, jump to .no_neg_sign
+            "    dec rsp\n"           // Move the stack pointer
+            "    mov [rsp], byte 45\n"  // Insert -
+            ".no_neg_sign:\n"
+            "    mov rdx, rbp\n"  // rdx = rsp
+            "    sub rdx, rsp\n"  // rdx = rsp - rbp
+            // Write buffer to stdout
+            "    mov rsi, rsp\n"  // rsi = rsp
+            "    mov rdx, rdx\n"  // rdx = rdx
+            "    call print_chars\n"
+            "    mov rsp, rbp\n"  // Restore stack pointer
+            "    pop r8\n"        // Restore r8
+            "    pop rdx\n"       // Restore rdx
+            "    pop rsi\n"       // Restore rsi
+            "    pop rbp\n"       // Restore rbp
+            "    pop rax\n"       // Restore rax
+            "    ret\n";
+
+        "\n";
 
         // Parse: start
         for (const auto& statement : m_prog.statements) {
@@ -306,8 +384,8 @@ class Generator {
                 m_prog.statements.back()->var)) {
             m_start << "    call print_chars\n";
             m_start << "    mov rdi, 0\n";
-        m_start << "    mov rax, 60\n";
-        m_start << "    syscall\n\n";
+            m_start << "    mov rax, 60\n";
+            m_start << "    syscall\n\n";
         }
 
         return m_data.str() + buffer.str() + m_start.str() + functions;
