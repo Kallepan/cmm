@@ -20,6 +20,7 @@ enum class TokenType {
     CLOSE_CURLY,  // }
 
     IF,    // if
+    ELSE,  // else
 
     END_OF_LINE,  // ;
 };
@@ -61,6 +62,9 @@ constexpr const char* toString(TokenType tokenType) {
 
         case TokenType::IF:
             return "IF";
+        case TokenType::ELSE:
+            return "ELSE";
+
         case TokenType::END_OF_LINE:
             return "END_OF_LINE";
 
@@ -80,7 +84,7 @@ inline std::ostream& operator<<(std::ostream& os, TokenType tokenType) {
 /**
  * @brief Check if a token has a unary precedence
  */
-std::optional<int> bin_prec(TokenType tokenType) {
+std::optional<size_t> bin_prec(TokenType tokenType) {
     switch (tokenType) {
         case TokenType::PLUS:
         case TokenType::MINUS:

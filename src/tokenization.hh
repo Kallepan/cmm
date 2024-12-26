@@ -66,6 +66,11 @@ class Tokenizer {
                     token_buff.clear();
                     continue;
                 }
+                if (token_buff == "else") {
+                    tokens.push_back({TokenType::ELSE, token_buff});
+                    token_buff.clear();
+                    continue;
+                }
 
                 tokens.push_back({TokenType::IDENT, token_buff});
                 token_buff.clear();
