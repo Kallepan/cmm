@@ -240,5 +240,5 @@ class Generator {
     };
     std::vector<Var> m_vars;             // Keeps track of the variables
     std::vector<size_t> m_stack_scopes;  // Keeps track of the stack scopes
-    int m_label_counter = 0;             // Keeps track of the number of labels
+    size_t m_label_counter = 0;          // Keeps track of the number of labels
 };
