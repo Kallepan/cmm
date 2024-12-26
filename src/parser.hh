@@ -64,7 +64,7 @@ struct StmtExit {
     Expr* expression;
 };
 
-struct StmtPrint {
+struct StmtArg {
     std::variant<Expr*, StringLit*> var;
 };
 
@@ -85,7 +85,7 @@ struct StmtIf {
 };
 
 struct Stmt {
-    std::variant<StmtExit*, StmtPrint*, StmtLet*, Scope*, StmtIf*> var;
+    std::variant<StmtExit*, StmtArg*, StmtLet*, Scope*, StmtIf*> var;
 };
 
 struct Prog {
@@ -276,12 +276,13 @@ class Parser {
             try_consume(TokenType::OPEN_PAREN, false, 1)) {
             consume();
             consume();
-            node::StmtPrint* stmt_print = m_allocator.alloc<node::StmtPrint>();
+            node::StmtArg* statement_argument =
+                m_allocator.alloc<node::StmtArg>();
 
             if (const auto node_string_literal = parse_string_lit()) {
-                stmt_print->var = node_string_literal.value();
+                statement_argument->var = node_string_literal.value();
             } else if (const auto node_expr = parse_expr()) {
-                stmt_print->var = node_expr.value();
+                statement_argument->var = node_expr.value();
             } else {
                 std::cerr << "Syntax error: expected expression after print\n";
                 exit(EXIT_FAILURE);
@@ -291,7 +292,7 @@ class Parser {
             try_consume(TokenType::END_OF_LINE, "Syntax error: expected ;\n");
 
             node::Stmt* statement = m_allocator.alloc<node::Stmt>();
-            statement->var = stmt_print;
+            statement->var = statement_argument;
             return statement;
         }
 

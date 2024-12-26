@@ -160,8 +160,8 @@ class Generator {
         std::visit(ExprVisitor{*this}, expression->var);
     }
 
-    void gen_print_arg(const node::StmtPrint* statement_print) {
-        struct PrintArgVisitor {
+    void gen_arg(const node::StmtArg* statement_print) {
+        struct ArgVisitor {
             Generator& gen;
 
             void operator()(const node::Expr* expression) const {
@@ -176,7 +176,7 @@ class Generator {
             }
         };
 
-        std::visit(PrintArgVisitor{*this}, statement_print->var);
+        std::visit(ArgVisitor{*this}, statement_print->var);
     }
 
     void gen_stmt(const node::Stmt* statement) {
@@ -192,8 +192,8 @@ class Generator {
                 gen.m_start << "    syscall\n\n";
             }
 
-            void operator()(const node::StmtPrint* statement_print) const {
-                gen.gen_print_arg(statement_print);
+            void operator()(const node::StmtArg* statement_print) const {
+                gen.gen_arg(statement_print);
             }
 
             void operator()(const node::StmtLet* statement_let) const {
@@ -316,8 +316,8 @@ class Generator {
             "    mov [rsp], byte 48\n"   // Insert 0
             "    mov rdx, rbp\n"         // rdx = rsp
             "    sub rdx, rsp\n"         // rdx = rsp - rbp
-            "    lea rsi, [rsp]\n"  // rsi = rsp
-            "    mov rdx, rdx\n"    // rdx = rdx
+            "    lea rsi, [rsp]\n"       // rsi = rsp
+            "    mov rdx, rdx\n"         // rdx = rdx
             "    call print_chars\n"
             "    mov rsp, rbp\n"  // Restore stack pointer
             "    pop rdx\n"       // Restore rdx

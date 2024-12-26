@@ -4,13 +4,13 @@ $$
 
 [\text{Stmt}] &\to \begin{cases}
     \text{exit}([\text{Expr}]); \\ % Exit
-    \text{print}([\text{PrintArgs}]); \\ % Print
+    \text{print}([\text{Arg}]); \\ % Print
     \text{let ident} = [\text{Expr}]; \\ % Let
     \text{if} ([\text{Expr}]) [\text{Scope}] \text{else} [\text{Scope}] \\ % If
     [\text{Scope}] \\ % Scope
 \end{cases} \\
 
-[\text{PrintArgs}] &\to \begin{cases}
+[\text{Arg}] &\to \begin{cases}
     [\text{Expr}] \\
     [\text{String}] \\
 \end{cases} \\
