@@ -2,11 +2,13 @@
 
 enum class TokenType {
     INT_LIT = 0,  // 123
+    STRING_LIT,   // "abc"
     IDENT,        // abc
 
     LET,  // let
 
-    EXIT,  // return
+    EXIT,   // return
+    PRINT,  // print
 
     OPEN_PAREN,     // (
     CLOSE_PAREN,    // )
@@ -30,6 +32,8 @@ enum class TokenType {
  */
 constexpr const char* toString(TokenType tokenType) {
     switch (tokenType) {
+        case TokenType::STRING_LIT:
+            return "STRING_LIT";
         case TokenType::INT_LIT:
             return "INT_LIT";
         case TokenType::IDENT:
@@ -37,8 +41,11 @@ constexpr const char* toString(TokenType tokenType) {
 
         case TokenType::LET:
             return "LET";
+
         case TokenType::EXIT:
             return "EXIT";
+        case TokenType::PRINT:
+            return "PRINT";
 
         case TokenType::OPEN_PAREN:
             return "OPEN_PARENTHESES";

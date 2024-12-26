@@ -22,6 +22,10 @@ struct TermParen {
     Expr* expression;
 };
 
+struct StringLit {
+    Token string_literal;
+};
+
 struct BinExprAddition {
     Expr* left;
     Expr* right;
@@ -60,6 +64,10 @@ struct StmtExit {
     Expr* expression;
 };
 
+struct StmtPrint {
+    std::variant<Expr*, StringLit*> var;
+};
+
 struct StmtLet {
     Token identifier;
     Expr* expression;
@@ -77,7 +85,7 @@ struct StmtIf {
 };
 
 struct Stmt {
-    std::variant<StmtExit*, StmtLet*, Scope*, StmtIf*> var;
+    std::variant<StmtExit*, StmtPrint*, StmtLet*, Scope*, StmtIf*> var;
 };
 
 struct Prog {
@@ -127,6 +135,16 @@ class Parser {
             auto term = m_allocator.alloc<node::Term>();
             term->var = term_paren;
             return term;
+        }
+
+        return std::nullopt;
+    }
+
+    std::optional<node::StringLit*> parse_string_lit() {
+        if (auto string_literal = try_consume(TokenType::STRING_LIT)) {
+            auto string_lit = m_allocator.alloc<node::StringLit>();
+            string_lit->string_literal = string_literal.value();
+            return string_lit;
         }
 
         return std::nullopt;
@@ -250,6 +268,30 @@ class Parser {
 
             node::Stmt* statement = m_allocator.alloc<node::Stmt>();
             statement->var = stmt_exit;
+            return statement;
+        }
+
+        // Parse print statement
+        if (try_consume(TokenType::PRINT, false) &&
+            try_consume(TokenType::OPEN_PAREN, false, 1)) {
+            consume();
+            consume();
+            node::StmtPrint* stmt_print = m_allocator.alloc<node::StmtPrint>();
+
+            if (const auto node_string_literal = parse_string_lit()) {
+                stmt_print->var = node_string_literal.value();
+            } else if (const auto node_expr = parse_expr()) {
+                stmt_print->var = node_expr.value();
+            } else {
+                std::cerr << "Syntax error: expected expression after print\n";
+                exit(EXIT_FAILURE);
+            }
+
+            try_consume(TokenType::CLOSE_PAREN, "Syntax error: expected )\n");
+            try_consume(TokenType::END_OF_LINE, "Syntax error: expected ;\n");
+
+            node::Stmt* statement = m_allocator.alloc<node::Stmt>();
+            statement->var = stmt_print;
             return statement;
         }
 
