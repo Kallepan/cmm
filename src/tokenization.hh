@@ -30,16 +30,17 @@ class Tokenizer {
         // Continue looking for tokens until the end of the source
         while (peek().has_value()) {
             char c = peek().value();
-            // Skip whitespace
-            if (std::isspace(c)) {
-                consume();
-                continue;
-            }
 
             // New line
             if (c == '\n') {
                 m_line_number++;
                 m_col_number = 0;
+                consume();
+                continue;
+            }
+
+            // Skip whitespace
+            if (std::isspace(c)) {
                 consume();
                 continue;
             }
