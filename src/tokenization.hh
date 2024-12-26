@@ -14,9 +14,9 @@ struct Token {
 
 class Tokenizer {
    public:
-    inline explicit Tokenizer(const std::string src) : m_src(std::move(src)) {}
+    explicit Tokenizer(const std::string src) : m_src(std::move(src)) {}
 
-    inline std::vector<Token> tokenize() {
+    std::vector<Token> tokenize() {
         std::vector<Token> tokens;
         std::string token_buff;
 
@@ -164,7 +164,7 @@ class Tokenizer {
     }
 
    private:
-    [[nodiscard]] inline std::optional<char> peek(size_t offset = 0) const {
+    [[nodiscard]] std::optional<char> peek(size_t offset = 0) const {
         if (m_index + offset >= m_src.size()) {
             return std::nullopt;
         }
@@ -172,7 +172,7 @@ class Tokenizer {
         return m_src[m_index + offset];
     }
 
-    inline char consume() {
+    char consume() {
         m_col_number++;
         return m_src.at(m_index++);
     }
