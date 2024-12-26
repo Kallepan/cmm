@@ -184,10 +184,11 @@ class Tokenizer {
             std::cout << "Token: " << token.type << ", Value: " << token.value
                       << "\n";
         }
+
+        std::cout << "Tokenization complete\n"
+                  << "file had " << m_line_number << " lines\n";
 #endif
         m_index = 0;
-        m_col_number = 1;
-        m_line_number = 1;
         return tokens;
     }
 
