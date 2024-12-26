@@ -256,7 +256,6 @@ class Generator {
             "initialize_buffer:\n"
             "    mov qword [buffer_used], 0\n"  // Reset buffer_used
             "\ncheck_and_add_to_buffer:\n"
-            // Check if print buffer would overflow
             "    mov rax, [buffer_used]\n"  // rax = buffer_used
             "    add rax, rcx\n"            // rax = buffer_used + string_length
             "    cmp rax, buffer_size\n"  // Compare buffer_used + string_length
@@ -268,7 +267,6 @@ class Generator {
             "    call initialize_buffer\n"  // Reset buffer_used
             "    jmp add_to_buffer\n"       // Add string to buffer
             "\nadd_to_buffer:\n"
-            // Add string to buffer
             "    mov rax, [buffer_used]\n"        // rax = buffer_used
             "    lea rdi, [buffer + rax]\n"       // rdi = buffer + buffer_used
             "    add qword [buffer_used], rcx\n"  // buffer_used +=
@@ -276,7 +274,6 @@ class Generator {
             "    rep movsb\n"                     // Copy string to buffer
             "    ret\n"
             "\nflush_buffer:\n"
-            // Write buffer to stdout
             "    lea rsi, [buffer]\n"       // rsi = buffer
             "    mov rdx, [buffer_used]\n"  // rdx = buffer_used
             "    call print_chars\n"
@@ -319,7 +316,6 @@ class Generator {
             "    mov [rsp], byte 48\n"   // Insert 0
             "    mov rdx, rbp\n"         // rdx = rsp
             "    sub rdx, rsp\n"         // rdx = rsp - rbp
-            // Write buffer to stdout
             "    lea rsi, [rsp]\n"  // rsi = rsp
             "    mov rdx, rdx\n"    // rdx = rdx
             "    call print_chars\n"
@@ -358,7 +354,6 @@ class Generator {
             ".no_neg_sign:\n"
             "    mov rdx, rbp\n"  // rdx = rsp
             "    sub rdx, rsp\n"  // rdx = rsp - rbp
-            // Write buffer to stdout
             "    mov rsi, rsp\n"  // rsi = rsp
             "    mov rdx, rdx\n"  // rdx = rdx
             "    call print_chars\n"
