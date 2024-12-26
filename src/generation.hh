@@ -124,7 +124,7 @@ class Generator {
 
         for (const char c : string_literal) {
             if (c == '\n') {
-                m_data << "', 13, 10, '";
+                m_data << "', 10, '";
                 continue;
             }
 
