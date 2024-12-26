@@ -9,7 +9,7 @@
 
 class Generator {
    public:
-    inline explicit Generator(node::Prog prog) : m_prog(std::move(prog)) {}
+    explicit Generator(node::Prog prog) : m_prog(std::move(prog)) {}
 
     void gen_term(const node::Term* term) {
         struct TermVisitor {
@@ -25,12 +25,12 @@ class Generator {
             void operator()(const node::TermIdent* term_identifier) const {
                 // Check if the variable is declared by looking it up in the
                 // variable vector using find_if
-                auto idx = std::find_if(
+                const auto iterator = std::find_if(
                     gen.m_vars.cbegin(), gen.m_vars.cend(),
                     [&](const Var& var) {
                         return var.name == term_identifier->identifier.value;
                     });
-                if (idx == gen.m_vars.cend()) {
+                if (iterator == gen.m_vars.cend()) {
                     std::cerr << "Variable not declared: "
                               << term_identifier->identifier.value << "\n";
                     exit(EXIT_FAILURE);
@@ -38,7 +38,8 @@ class Generator {
 
                 std::ostringstream oss;
                 oss << "QWORD [rsp + "
-                    << (gen.m_stack_pointer - (*idx).stack_loc - 1) * 8 << "]";
+                    << (gen.m_stack_pointer - iterator->stack_loc - 1) * 8
+                    << "]";
                 gen.push(oss.str());
             }
 
@@ -144,7 +145,7 @@ class Generator {
             void operator()(const node::StmtLet* statement_let) const {
                 // Check if the variable is already declared in the current
                 // scope
-                auto iterator = std::find_if(
+                const auto iterator = std::find_if(
                     gen.m_vars.cbegin(), gen.m_vars.cend(),
                     [&](const Var& var) {
                         return var.name == statement_let->identifier.value &&
@@ -169,7 +170,7 @@ class Generator {
             void operator()(const node::StmtIf* statement_if) const {
                 gen.gen_expr(statement_if->condition);
                 gen.pop("rax");
-                std::string label = gen.create_label();
+                const std::string label = gen.create_label();
 
                 gen.m_output << "    test rax, rax\n";
                 gen.m_output << "    je " << label << "\n";
@@ -203,7 +204,7 @@ class Generator {
    private:
     void begin_scope() { m_stack_scopes.push_back(m_vars.size()); }
     void end_scope() {
-        size_t variables_to_pop = m_vars.size() - m_stack_scopes.back();
+        const size_t variables_to_pop = m_vars.size() - m_stack_scopes.back();
         m_output << "    add rsp, " << variables_to_pop * 8 << "\n";
         m_stack_pointer -= variables_to_pop;
         m_vars.resize(m_stack_scopes.back());

@@ -84,7 +84,7 @@ inline std::ostream& operator<<(std::ostream& os, TokenType tokenType) {
 /**
  * @brief Check if a token has a unary precedence
  */
-std::optional<size_t> bin_prec(TokenType tokenType) {
+inline std::optional<size_t> bin_prec(const TokenType tokenType) {
     switch (tokenType) {
         case TokenType::PLUS:
         case TokenType::MINUS:
