@@ -84,11 +84,19 @@ class Tokenizer {
                     token_buff.clear();
                     continue;
                 }
+
+                if (token_buff == "print") {
+                    tokens.push_back({TokenType::PRINT, token_buff});
+                    token_buff.clear();
+                    continue;
+                }
+
                 if (token_buff == "let") {
                     tokens.push_back({TokenType::LET, token_buff});
                     token_buff.clear();
                     continue;
                 }
+
                 if (token_buff == "if") {
                     tokens.push_back({TokenType::IF, token_buff});
                     token_buff.clear();
@@ -112,6 +120,31 @@ class Tokenizer {
                 consume_while([](char c) { return std::isdigit(c); });
 
                 tokens.push_back({TokenType::INT_LIT, token_buff});
+                token_buff.clear();
+                continue;
+            }
+
+            // Strings
+            if (c == '"') {
+                consume();
+                while (peek().has_value() && peek().value() != '"') {
+                    if (peek().value() == '\\' && peek(1).has_value()) {
+                        consume();
+
+                        // Handle escape characters
+                        if (peek().value() == 'n') {
+                            consume();
+                            token_buff.push_back('\n');
+                            continue;
+                        }
+
+                        continue;
+                    }
+
+                    token_buff.push_back(consume());
+                }
+                consume();
+                tokens.push_back({TokenType::STRING_LIT, token_buff});
                 token_buff.clear();
                 continue;
             }

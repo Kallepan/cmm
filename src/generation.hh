@@ -16,9 +16,9 @@ class Generator {
             Generator& gen;
             void operator()(
                 const node::TermIntLit* term_integer_literal) const {
-                gen.m_output << "    mov rax, "
-                             << term_integer_literal->integer_literal.value
-                             << "\n";
+                gen.m_start << "    mov rax, "
+                            << term_integer_literal->integer_literal.value
+                            << "\n";
                 gen.push("rax");
             }
 
@@ -62,7 +62,7 @@ class Generator {
 
                 gen.pop("rax");
                 gen.pop("rbx");
-                gen.m_output << "    add rax, rbx\n";
+                gen.m_start << "    add rax, rbx\n";
                 gen.push("rax");
             }
 
@@ -73,7 +73,7 @@ class Generator {
 
                 gen.pop("rax");
                 gen.pop("rbx");
-                gen.m_output << "    sub rax, rbx\n";
+                gen.m_start << "    sub rax, rbx\n";
                 gen.push("rax");
             }
 
@@ -84,8 +84,8 @@ class Generator {
 
                 gen.pop("rax");
                 gen.pop("rbx");
-                gen.m_output << "    xor rdx, rdx\n";  // Clear the high bits
-                gen.m_output << "    mul rbx\n";
+                gen.m_start << "    xor rdx, rdx\n";  // Clear the high bits
+                gen.m_start << "    mul rbx\n";
                 gen.push("rax");
             }
 
@@ -96,13 +96,52 @@ class Generator {
 
                 gen.pop("rbx");
                 gen.pop("rax");
-                gen.m_output << "    cqo\n";
-                gen.m_output << "    idiv rbx\n";
+                gen.m_start << "    cqo\n";
+                gen.m_start << "    idiv rbx\n";
                 gen.push("rax");
             }
         };
 
         std::visit(BinExprVisitor{*this}, bin_expr->var);
+    }
+
+    void gen_scope(const node::Scope* scope) {
+        begin_scope();
+
+        for (const auto& statement : scope->statements) {
+            gen_stmt(statement);
+        }
+
+        end_scope();
+    }
+
+    void gen_string_literal(const std::string string_literal) {
+        size_t current_string_counter = m_string_counter++;
+
+        // Add string to the data section
+        m_data << "    string" << current_string_counter << " db '";
+
+        for (const char c : string_literal) {
+            if (c == '\n') {
+                m_data << "', 13, 10, '";
+                continue;
+            }
+
+            m_data << c;
+        }
+        m_data << "', 0\n";
+
+        // Add string length + 1 (for the null terminator) to the data section
+        m_data << "    string" << current_string_counter << "_len"
+               << " equ " << string_literal.size() + 1 << "\n";
+
+        // Load the address of the string into rsi
+        m_start << "    lea rsi, [string" << current_string_counter << "]\n";
+        // Load the length of the string into rcx
+        m_start << "    mov rcx, string" << current_string_counter << "_len"
+                << "\n";
+        m_start << "    call add_to_buffer\n";
+        m_start << "    call flush_buffer\n";
     }
 
     void gen_expr(const node::Expr* expression) {
@@ -121,25 +160,38 @@ class Generator {
         std::visit(ExprVisitor{*this}, expression->var);
     }
 
-    void gen_scope(const node::Scope* scope) {
-        begin_scope();
+    void gen_print_arg(const node::StmtPrint* statement_print) {
+        struct PrintArgVisitor {
+            Generator& gen;
 
-        for (const auto& statement : scope->statements) {
-            gen_stmt(statement);
-        }
+            void operator()(const node::Expr* expression) const {
+                gen.gen_expr(expression);
 
-        end_scope();
+                assert(false && "Not implemented yet");
+            }
+
+            void operator()(const node::StringLit* string_literal) const {
+                gen.gen_string_literal(string_literal->string_literal.value);
+            }
+        };
+
+        std::visit(PrintArgVisitor{*this}, statement_print->var);
     }
 
     void gen_stmt(const node::Stmt* statement) {
         struct StmtVisitor {
             Generator& gen;
 
-            void operator()(const node::StmtExit* stmt_exit) const {
-                gen.gen_expr(stmt_exit->expression);
-                gen.m_output << "    mov rax, 60\n";
+            void operator()(const node::StmtExit* statement_exit) const {
+                gen.gen_expr(statement_exit->expression);
+
+                gen.m_start << "    mov rax, 60\n";
                 gen.pop("rdi");
-                gen.m_output << "    syscall\n";
+                gen.m_start << "    syscall\n";
+            }
+
+            void operator()(const node::StmtPrint* statement_print) const {
+                gen.gen_print_arg(statement_print);
             }
 
             void operator()(const node::StmtLet* statement_let) const {
@@ -172,12 +224,12 @@ class Generator {
                 gen.pop("rax");
                 const std::string label = gen.create_label();
 
-                gen.m_output << "    test rax, rax\n";
-                gen.m_output << "    je " << label << "\n";
+                gen.m_start << "    test rax, rax\n";
+                gen.m_start << "    je " << label << "\n";
 
                 gen.gen_scope(statement_if->scope);
 
-                gen.m_output << label << ":\n";
+                gen.m_start << label << ":\n";
             }
         };
 
@@ -185,7 +237,44 @@ class Generator {
     }
 
     [[nodiscard]] std::string gen_prog() {
-        m_output << "global _start\n\n_start:\n";
+        m_start << "section .text\n    global _start\n\n_start:\n";
+        m_data << "section .data\n"
+               << "    newline db 10\n";
+        std::ostringstream buffer;
+        buffer << "section .bss\n"
+               << "    buffer resb " << m_buffer_size << "\n"
+               << "    buffer_used resq 1\n\n";
+        m_start << "    call initalize_buffer\n";
+
+        // Functions
+        std::string functions =
+            "initalize_buffer:\n"
+            "    mov rdi, buffer\n"
+            "    mov rcx, 4096\n"
+            "    xor rax, rax\n"
+            "    rep stosb\n"
+            "    mov qword [buffer_used], 0\n"
+            "\nadd_to_buffer:\n"
+            "    mov rax, [buffer_used]\n"
+            "    lea rdi, [buffer + rax]\n"
+            "    add qword [buffer_used], rcx\n"
+            "    rep movsb\n"
+            "    ret\n\n"
+            "flush_buffer:\n"
+            // Add newline to buffer
+            "    lea rsi, [newline]\n"
+            "    mov rcx, 1\n"
+            "    call add_to_buffer\n"
+            // Write buffer to stdout
+            "    mov rdi, 1\n"
+            "    mov rax, 1\n"
+            "    lea rsi, [buffer]\n"
+            "    mov rdx, [buffer_used]\n"
+            "    syscall\n"
+            // Reset buffer
+            "    call initalize_buffer\n"
+            "    ret\n"
+            "\n";
 
         // Parse: start
         for (const auto& statement : m_prog.statements) {
@@ -194,18 +283,21 @@ class Generator {
         // Parse: end
 
         //  Default exit
-        m_output << "    mov rax, 60\n";
-        m_output << "    mov rdi, 0\n";
-        m_output << "    syscall\n";
+        m_start << "    mov rax, 60\n";
+        m_start << "    mov rdi, 0\n";
+        m_start << "    syscall\n\n";
 
-        return m_output.str();
+        return m_data.str() + buffer.str() + m_start.str() + functions;
     }
 
    private:
     void begin_scope() { m_stack_scopes.push_back(m_vars.size()); }
     void end_scope() {
         const size_t variables_to_pop = m_vars.size() - m_stack_scopes.back();
-        m_output << "    add rsp, " << variables_to_pop * 8 << "\n";
+        if (variables_to_pop == 0) {
+            return;
+        }
+        m_start << "    add rsp, " << variables_to_pop * 8 << "\n";
         m_stack_pointer -= variables_to_pop;
         m_vars.resize(m_stack_scopes.back());
         m_stack_scopes.pop_back();
@@ -218,17 +310,18 @@ class Generator {
     }
 
     void push(const std::string& reg) {
-        m_output << "    push " << reg << "\n";
+        m_start << "    push " << reg << "\n";
         m_stack_pointer++;
     }
 
     void pop(const std::string& reg) {
-        m_output << "    pop " << reg << "\n";
+        m_start << "    pop " << reg << "\n";
         m_stack_pointer--;
     }
 
     const node::Prog m_prog;
-    std::stringstream m_output;
+    std::ostringstream m_start;
+    std::ostringstream m_data;
 
     // Keeps track of the stack pointer
     size_t m_stack_pointer = 0;
@@ -242,4 +335,6 @@ class Generator {
     std::vector<Var> m_vars;             // Keeps track of the variables
     std::vector<size_t> m_stack_scopes;  // Keeps track of the stack scopes
     size_t m_label_counter = 0;          // Keeps track of the number of labels
+    size_t m_string_counter = 0;         // Keeps track of the number of strings
+    const size_t m_buffer_size = 4096;   // Buffer size
 };
