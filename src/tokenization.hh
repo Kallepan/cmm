@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "config.hh"
 #include "token_type.hh"
 
 struct Token {
@@ -14,9 +15,9 @@ struct Token {
 
 class Tokenizer {
    public:
-    inline explicit Tokenizer(const std::string src) : m_src(std::move(src)) {}
+    explicit Tokenizer(const std::string src) : m_src(std::move(src)) {}
 
-    inline std::vector<Token> tokenize() {
+    std::vector<Token> tokenize() {
         std::vector<Token> tokens;
         std::string token_buff;
 
@@ -30,17 +31,46 @@ class Tokenizer {
         // Continue looking for tokens until the end of the source
         while (peek().has_value()) {
             char c = peek().value();
+
+            // New line
+            if (c == '\n') {
+                handle_new_line();
+                consume();
+                continue;
+            }
+
             // Skip whitespace
             if (std::isspace(c)) {
                 consume();
                 continue;
             }
 
-            // New line
-            if (c == '\n') {
-                m_line_number++;
-                m_col_number = 0;
+            // Comments
+            if (c == '/' && peek(1).has_value() && peek(1).value() == '/') {
                 consume();
+                consume();
+                while (peek().has_value() && peek().value() != '\n') {
+                    consume();
+                }
+                continue;
+            }
+            if (c == '/' && peek(1).has_value() && peek(1).value() == '*') {
+                consume();
+                consume();
+                while (peek().has_value()) {
+                    if (peek().value() == '*' && peek(1).value() == '/') {
+                        consume();
+                        consume();
+                        break;
+                    }
+
+                    // Handle new lines in comments
+                    if (peek().value() == '\n') {
+                        handle_new_line();
+                    }
+
+                    consume();
+                }
                 continue;
             }
 
@@ -55,8 +85,31 @@ class Tokenizer {
                     token_buff.clear();
                     continue;
                 }
+
+                if (token_buff == "print") {
+                    tokens.push_back({TokenType::PRINT, token_buff});
+                    token_buff.clear();
+                    continue;
+                }
+
                 if (token_buff == "let") {
                     tokens.push_back({TokenType::LET, token_buff});
+                    token_buff.clear();
+                    continue;
+                }
+
+                if (token_buff == "if") {
+                    tokens.push_back({TokenType::IF, token_buff});
+                    token_buff.clear();
+                    continue;
+                }
+                if (token_buff == "elif") {
+                    tokens.push_back({TokenType::ELIF, token_buff});
+                    token_buff.clear();
+                    continue;
+                }
+                if (token_buff == "else") {
+                    tokens.push_back({TokenType::ELSE, token_buff});
                     token_buff.clear();
                     continue;
                 }
@@ -66,19 +119,53 @@ class Tokenizer {
                 continue;
             }
 
-            // Number
-            if (std::isdigit(c)) {
+            // Numbers
+            if ((c == '-' && std::isdigit(peek(1).value())) ||
+                std::isdigit(c)) {
                 token_buff.push_back(consume());
-                consume_while([](char c) { return std::isdigit(c); });
-
-                if (!std::isdigit(token_buff[0])) {
-                    std::cerr << "Syntax error: " << token_buff
-                              << " at line: " << m_line_number << "\n";
-
-                    exit(EXIT_FAILURE);
+                while (peek().has_value()) {
+                    if (peek().value() == '_' && peek(1).has_value() &&
+                        std::isdigit(peek(1).value())) {
+                        consume();
+                        continue;
+                    }
+                    if (!std::isdigit(peek().value())) {
+                        break;
+                    }
+                    token_buff.push_back(consume());
                 }
 
                 tokens.push_back({TokenType::INT_LIT, token_buff});
+                token_buff.clear();
+                continue;
+            }
+
+            // Strings
+            if (c == '"') {
+                consume();
+                while (peek().has_value() && peek().value() != '"') {
+                    if (peek().value() == '\\' && peek(1).has_value()) {
+                        consume();
+
+                        // Handle escape characters
+                        if (peek().value() == 'n') {
+                            consume();
+                            token_buff.push_back('\n');
+                            continue;
+                        }
+
+                        continue;
+                    }
+
+                    token_buff.push_back(consume());
+                }
+                consume();
+                if (token_buff.size() > MAX_STRING_SIZE) {
+                    std::cerr << "String too long at column: " << m_col_number
+                              << " at line: " << m_line_number << "\n";
+                    exit(EXIT_FAILURE);
+                }
+                tokens.push_back({TokenType::STRING_LIT, token_buff});
                 token_buff.clear();
                 continue;
             }
@@ -142,7 +229,7 @@ class Tokenizer {
             // Syntax error, no token found
             std::cerr << "Syntax error: " << peek().value()
                       << " at column: " << m_col_number
-                      << " in line: " << m_line_number << "\n";
+                      << " at line: " << m_line_number << "\n";
             exit(EXIT_FAILURE);
         }
 
@@ -151,15 +238,16 @@ class Tokenizer {
             std::cout << "Token: " << token.type << ", Value: " << token.value
                       << "\n";
         }
+
+        std::cout << "Tokenization complete\n"
+                  << "file had " << m_line_number << " lines\n";
 #endif
         m_index = 0;
-        m_col_number = 1;
-        m_line_number = 1;
         return tokens;
     }
 
    private:
-    [[nodiscard]] inline std::optional<char> peek(size_t offset = 0) const {
+    [[nodiscard]] std::optional<char> peek(size_t offset = 0) const {
         if (m_index + offset >= m_src.size()) {
             return std::nullopt;
         }
@@ -167,13 +255,22 @@ class Tokenizer {
         return m_src[m_index + offset];
     }
 
-    inline char consume() {
+    char consume() {
         m_col_number++;
         return m_src.at(m_index++);
     }
 
+    void handle_new_line() {
+#ifdef DEBUG
+        std::cout << "New line at: " << m_line_number << " with "
+                  << m_col_number << " columns\n";
+#endif
+        m_line_number++;
+        m_col_number = 0;
+    }
+
     const std::string m_src;
     size_t m_index{0};
-    size_t m_col_number{1};
+    size_t m_col_number{0};
     size_t m_line_number{1};
 };

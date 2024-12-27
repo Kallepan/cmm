@@ -2,11 +2,13 @@
 
 enum class TokenType {
     INT_LIT = 0,  // 123
+    STRING_LIT,   // "abc"
     IDENT,        // abc
 
     LET,  // let
 
-    EXIT,  // return
+    EXIT,   // return
+    PRINT,  // print
 
     OPEN_PAREN,     // (
     CLOSE_PAREN,    // )
@@ -19,6 +21,10 @@ enum class TokenType {
     OPEN_CURLY,   // {
     CLOSE_CURLY,  // }
 
+    IF,    // if
+    ELIF,  // elif
+    ELSE,  // else
+
     END_OF_LINE,  // ;
 };
 
@@ -27,6 +33,8 @@ enum class TokenType {
  */
 constexpr const char* toString(TokenType tokenType) {
     switch (tokenType) {
+        case TokenType::STRING_LIT:
+            return "STRING_LIT";
         case TokenType::INT_LIT:
             return "INT_LIT";
         case TokenType::IDENT:
@@ -34,8 +42,11 @@ constexpr const char* toString(TokenType tokenType) {
 
         case TokenType::LET:
             return "LET";
+
         case TokenType::EXIT:
             return "EXIT";
+        case TokenType::PRINT:
+            return "PRINT";
 
         case TokenType::OPEN_PAREN:
             return "OPEN_PARENTHESES";
@@ -57,6 +68,13 @@ constexpr const char* toString(TokenType tokenType) {
         case TokenType::CLOSE_CURLY:
             return "CLOSE_CURLY";
 
+        case TokenType::IF:
+            return "IF";
+        case TokenType::ELIF:
+            return "ELIF";
+        case TokenType::ELSE:
+            return "ELSE";
+
         case TokenType::END_OF_LINE:
             return "END_OF_LINE";
 
@@ -76,7 +94,7 @@ inline std::ostream& operator<<(std::ostream& os, TokenType tokenType) {
 /**
  * @brief Check if a token has a unary precedence
  */
-std::optional<int> bin_prec(TokenType tokenType) {
+inline std::optional<size_t> bin_prec(const TokenType tokenType) {
     switch (tokenType) {
         case TokenType::PLUS:
         case TokenType::MINUS:

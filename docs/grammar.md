@@ -4,31 +4,44 @@ $$
 
 [\text{Stmt}] &\to \begin{cases}
     \text{exit}([\text{Expr}]); \\ % Exit
+    \text{print}([\text{Arg}]); \\ % Print
     \text{let ident} = [\text{Expr}]; \\ % Let
-    \{[\text{Stmt}]^*\} \\ % Scope
+    \text{if} ([\text{Expr}]) [\text{Scope}] [\text{IfPred}] [\text{Else}] \\ % If
+    [\text{Scope}] \\ % Scope
 \end{cases} \\
 
-[\text{Expr}] &\to
-\begin{cases}
+\text{[Scope]} &\to \{[\text{Stmt}]^*\} \\ % Scope
+
+[\text{Arg}] &\to \begin{cases}
+    [\text{Expr}] \\
+    [\text{String}] \\
+\end{cases} \\
+
+[\text{IfPred}] &\to \begin{cases}
+    \text{elif} ([\text{Expr}]) [\text{Scope}] [\text{IfPred}] \\
+    \text{else} [\text{Scope}] \\
+    \epsilon \\
+\end{cases} \\
+
+[\text{Expr}] &\to \begin{cases}
     [\text{Term}] \\
     [\text{BinExpr}] \\
-\end{cases}\\
+\end{cases} \\
 
-[\text{BinExpr}] &\to
-\begin{cases}
-    [\text{Expr}] / [\text{Expr}] & \text{prec} = 2 \\
-    [\text{Expr}] * [\text{Expr}] & \text{prec} = 2 \\
-    [\text{Expr}] + [\text{Expr}] & \text{prec} = 1 \\
-    [\text{Expr}] - [\text{Expr}] & \text{prec} = 1 \\
-\end{cases}\\
+[\text{BinExpr}] &\to \begin{cases}
+    [\text{Expr}] / [\text{Expr}] & \text{prec = 2} \\
+    [\text{Expr}] * [\text{Expr}] & \text{prec = 2} \\
+    [\text{Expr}] + [\text{Expr}] & \text{prec = 1} \\
+    [\text{Expr}] - [\text{Expr}] & \text{prec = 1} \\
+\end{cases} \\
 
-[\text{Term}] &\to
-\begin{cases}
+[\text{Term}] &\to \begin{cases}
     \text{int\_lit} \\
     \text{ident} \\
     ([\text{Expr}]) \\
-    
-\end{cases}
+\end{cases} \\
+
+[\text{String}] &\to \text{"string\_lit"} \\ % String
 
 \end{align}
 $$
