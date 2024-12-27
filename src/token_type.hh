@@ -22,6 +22,7 @@ enum class TokenType {
     CLOSE_CURLY,  // }
 
     IF,    // if
+    ELIF,  // elif
     ELSE,  // else
 
     END_OF_LINE,  // ;
@@ -69,6 +70,8 @@ constexpr const char* toString(TokenType tokenType) {
 
         case TokenType::IF:
             return "IF";
+        case TokenType::ELIF:
+            return "ELIF";
         case TokenType::ELSE:
             return "ELSE";
 

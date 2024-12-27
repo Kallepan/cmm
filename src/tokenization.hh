@@ -103,6 +103,11 @@ class Tokenizer {
                     token_buff.clear();
                     continue;
                 }
+                if (token_buff == "elif") {
+                    tokens.push_back({TokenType::ELIF, token_buff});
+                    token_buff.clear();
+                    continue;
+                }
                 if (token_buff == "else") {
                     tokens.push_back({TokenType::ELSE, token_buff});
                     token_buff.clear();

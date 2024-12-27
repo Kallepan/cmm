@@ -46,6 +46,7 @@ struct BinExprDivision {
     Expr* right;
 };
 
+// TODO: use using instead of struct
 struct BinExpr {
     std::variant<BinExprAddition*, BinExprMultiplication*, BinExprSubtraction*,
                  BinExprDivision*>
@@ -79,9 +80,26 @@ struct Scope {
     std::vector<Stmt*> statements;
 };
 
+struct IfPred;
+
+struct IfPredElif {
+    Expr* condition;
+    Scope* scope;
+    std::optional<IfPred*> next;
+};
+
+struct IfPredElse {
+    Scope* scope;
+};
+
+struct IfPred {
+    std::variant<IfPredElif*, IfPredElse*> var;
+};
+
 struct StmtIf {
     Expr* condition;
     Scope* scope;
+    std::optional<IfPred*> next;
 };
 
 struct Stmt {
@@ -231,6 +249,54 @@ class Parser {
         return expression;
     }
 
+    std::optional<node::IfPred*> parse_if_pred() {
+        if (try_consume(TokenType::ELIF, true)) {
+            try_consume(TokenType::OPEN_PAREN, "Syntax error: expected (\n");
+
+            node::IfPredElif* if_pred_elif =
+                m_allocator.alloc<node::IfPredElif>();
+
+            if (const auto node_expr = parse_expr()) {
+                if_pred_elif->condition = node_expr.value();
+            } else {
+                std::cerr << "Syntax error: expected expression after elif\n";
+                exit(EXIT_FAILURE);
+            }
+            try_consume(TokenType::CLOSE_PAREN, "Syntax error: expected )\n");
+
+            auto scope = parse_scope();
+            if (!scope.has_value()) {
+                std::cerr << "Syntax error: expected scope after elif\n";
+                exit(EXIT_FAILURE);
+            }
+            if_pred_elif->scope = scope.value();
+
+            if_pred_elif->next = parse_if_pred();
+
+            node::IfPred* if_pred = m_allocator.alloc<node::IfPred>();
+            if_pred->var = if_pred_elif;
+            return if_pred;
+        }
+
+        if (try_consume(TokenType::ELSE, true)) {
+            auto scope = parse_scope();
+            if (!scope.has_value()) {
+                std::cerr << "Syntax error: expected scope after else\n";
+                exit(EXIT_FAILURE);
+            }
+
+            node::IfPredElse* if_pred_else =
+                m_allocator.alloc<node::IfPredElse>();
+            if_pred_else->scope = scope.value();
+
+            node::IfPred* if_pred = m_allocator.alloc<node::IfPred>();
+            if_pred->var = if_pred_else;
+            return if_pred;
+        }
+
+        return std::nullopt;
+    }
+
     std::optional<node::Scope*> parse_scope() {
         if (try_consume(TokenType::OPEN_CURLY, "Syntax error: expected {\n")) {
             node::Scope* scope = m_allocator.alloc<node::Scope>();
@@ -354,6 +420,8 @@ class Parser {
                 exit(EXIT_FAILURE);
             }
             stmt_if->scope = scope.value();
+
+            stmt_if->next = parse_if_pred();
 
             node::Stmt* statement = m_allocator.alloc<node::Stmt>();
             statement->var = stmt_if;

@@ -116,6 +116,38 @@ class Generator {
         end_scope();
     }
 
+    void gen_if_predicate(const node::IfPred* pred,
+                          const std::string& end_jump_label) {
+        struct PredicateVisitor {
+            Generator& gen;
+            const std::string& end_jump_label;
+
+            void operator()(const node::IfPredElif* pred_elif) const {
+                gen.gen_expr(pred_elif->condition);
+                gen.pop("rax");
+                const std::string label = gen.create_label();
+
+                gen.m_start << "    test rax, rax\n";
+                gen.m_start << "    jz " << label << "\n";
+
+                gen.gen_scope(pred_elif->scope);
+                gen.m_start << "    jmp " << end_jump_label << "\n";
+
+                gen.m_start << label << ":\n";
+                if (pred_elif->next.has_value()) {
+                    gen.gen_if_predicate(pred_elif->next.value(),
+                                         end_jump_label);
+                }
+            }
+
+            void operator()(const node::IfPredElse* pred_else) const {
+                gen.gen_scope(pred_else->scope);
+            }
+        };
+
+        std::visit(PredicateVisitor{*this, end_jump_label}, pred->var);
+    }
+
     void gen_string_literal(const std::string string_literal) {
         size_t current_string_counter = m_string_counter++;
 
@@ -227,11 +259,18 @@ class Generator {
                 const std::string label = gen.create_label();
 
                 gen.m_start << "    test rax, rax\n";
-                gen.m_start << "    je " << label << "\n";
+                gen.m_start << "    jz " << label << "\n";
 
                 gen.gen_scope(statement_if->scope);
+                const std::string end_label = gen.create_label();
+                gen.m_start << "    jmp " << end_label << "\n";
 
                 gen.m_start << label << ":\n";
+                if (statement_if->next.has_value()) {
+                    gen.gen_if_predicate(statement_if->next.value(), end_label);
+                }
+
+                gen.m_start << end_label << ":\n";
             }
         };
 

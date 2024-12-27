@@ -6,16 +6,22 @@ $$
     \text{exit}([\text{Expr}]); \\ % Exit
     \text{print}([\text{Arg}]); \\ % Print
     \text{let ident} = [\text{Expr}]; \\ % Let
-    \text{if} ([\text{Expr}]) [\text{Scope}] \text{else} [\text{Scope}] \\ % If
+    \text{if} ([\text{Expr}]) [\text{Scope}] [\text{IfPred}] [\text{Else}] \\ % If
     [\text{Scope}] \\ % Scope
 \end{cases} \\
+
+\text{[Scope]} &\to \{[\text{Stmt}]^*\} \\ % Scope
 
 [\text{Arg}] &\to \begin{cases}
     [\text{Expr}] \\
     [\text{String}] \\
 \end{cases} \\
 
-\text{[Scope]} &\to \{[\text{Stmt}]^*\} \\ % Scope
+[\text{IfPred}] &\to \begin{cases}
+    \text{elif} ([\text{Expr}]) [\text{Scope}] [\text{IfPred}] \\
+    \text{else} [\text{Scope}] \\
+    \epsilon \\
+\end{cases} \\
 
 [\text{Expr}] &\to \begin{cases}
     [\text{Term}] \\
