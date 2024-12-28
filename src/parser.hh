@@ -72,6 +72,7 @@ struct StmtArg {
 struct StmtLet {
     Token identifier;
     Expr* expression;
+    bool is_mutable{false};
 };
 
 struct Stmt;
@@ -362,14 +363,20 @@ class Parser {
             return statement;
         }
 
-        // Parse let statement
-        if (try_consume(TokenType::LET, false) &&
-            try_consume(TokenType::IDENT, false, 1) &&
-            try_consume(TokenType::EQ, false, 2)) {
+        if (try_consume(TokenType::LET, false)) {
             consume();
             node::StmtLet* statement_let = m_allocator.alloc<node::StmtLet>();
+
+            // Parse mutable
+            if (try_consume(TokenType::MUT, false)) {
+                consume();
+                statement_let->is_mutable = true;
+            }
+            // Parse identifier
             statement_let->identifier = consume();
             consume();
+
+            // Parse expression
             if (const auto node_expr = parse_expr()) {
                 statement_let->expression = node_expr.value();
             } else {

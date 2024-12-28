@@ -6,6 +6,7 @@ enum class TokenType {
     IDENT,        // abc
 
     LET,  // let
+    MUT,  // let mut
 
     EXIT,   // return
     PRINT,  // print
@@ -42,6 +43,8 @@ constexpr const char* toString(TokenType tokenType) {
 
         case TokenType::LET:
             return "LET";
+        case TokenType::MUT:
+            return "MUT";
 
         case TokenType::EXIT:
             return "EXIT";

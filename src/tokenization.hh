@@ -114,6 +114,12 @@ class Tokenizer {
                     continue;
                 }
 
+                if (token_buff == "mut") {
+                    tokens.push_back({TokenType::MUT, token_buff});
+                    token_buff.clear();
+                    continue;
+                }
+
                 tokens.push_back({TokenType::IDENT, token_buff});
                 token_buff.clear();
                 continue;

@@ -1,6 +1,7 @@
 {}
 let x = (10 - 2 * 3) / (3 - 2 + 1);
 let a = -2;
+let mut m = 5;
 // This is a comment
 /* This is a
    multiline comment */
