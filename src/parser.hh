@@ -46,7 +46,6 @@ struct BinExprDivision {
     Expr* right;
 };
 
-// TODO: use using instead of struct
 struct BinExpr {
     std::variant<BinExprAddition*, BinExprMultiplication*, BinExprSubtraction*,
                  BinExprDivision*>
