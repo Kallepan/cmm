@@ -6,7 +6,8 @@ $$
     \text{exit}([\text{Expr}]); \\ % Exit
     \text{print}([\text{Arg}]); \\ % Print
     \text{let ident} = [\text{Expr}]; \\ % Let
-    \text{if} ([\text{Expr}]) [\text{Scope}] [\text{IfPred}] [\text{Else}] \\ % If
+    \text{let mut ident} = [\text{Expr}]; \\ % LetMut
+    \text{if} ([\text{Expr}]) [\text{Scope}] [\text{IfPred}] \\ % If
     [\text{Scope}] \\ % Scope
 \end{cases} \\
 
