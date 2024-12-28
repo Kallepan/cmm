@@ -121,25 +121,25 @@ class Parser {
 
     std::optional<node::Term*> parse_term() {
         if (auto integer_literal = try_consume(TokenType::INT_LIT)) {
-            auto term_int_lit = m_allocator.alloc<node::TermIntLit>();
+            auto term_int_lit = m_allocator.emplace<node::TermIntLit>();
             term_int_lit->integer_literal = integer_literal.value();
 
-            auto term = m_allocator.alloc<node::Term>();
+            auto term = m_allocator.emplace<node::Term>();
             term->var = term_int_lit;
             return term;
         }
 
         if (auto identifier = try_consume(TokenType::IDENT)) {
-            auto term_ident = m_allocator.alloc<node::TermIdent>();
+            auto term_ident = m_allocator.emplace<node::TermIdent>();
             term_ident->identifier = identifier.value();
 
-            auto term = m_allocator.alloc<node::Term>();
+            auto term = m_allocator.emplace<node::Term>();
             term->var = term_ident;
             return term;
         }
 
         if (auto open_paren = try_consume(TokenType::OPEN_PAREN)) {
-            auto term_paren = m_allocator.alloc<node::TermParen>();
+            auto term_paren = m_allocator.emplace<node::TermParen>();
             auto expr = parse_expr();
 
             if (!expr.has_value()) {
@@ -151,7 +151,7 @@ class Parser {
 
             try_consume(TokenType::CLOSE_PAREN, "Syntax error: expected )\n");
 
-            auto term = m_allocator.alloc<node::Term>();
+            auto term = m_allocator.emplace<node::Term>();
             term->var = term_paren;
             return term;
         }
@@ -161,7 +161,7 @@ class Parser {
 
     std::optional<node::StringLit*> parse_string_lit() {
         if (auto string_literal = try_consume(TokenType::STRING_LIT)) {
-            auto string_lit = m_allocator.alloc<node::StringLit>();
+            auto string_lit = m_allocator.emplace<node::StringLit>();
             string_lit->string_literal = string_literal.value();
             return string_lit;
         }
@@ -177,7 +177,7 @@ class Parser {
             return std::nullopt;
         }
 
-        auto expression = m_allocator.alloc<node::Expr>();
+        auto expression = m_allocator.emplace<node::Expr>();
         expression->var = term_lhs.value();
 
         while (true) {
@@ -201,13 +201,13 @@ class Parser {
                 exit(EXIT_FAILURE);
             }
 
-            auto bin_expr = m_allocator.alloc<node::BinExpr>();
-            auto expr_lhs = m_allocator.alloc<node::Expr>();
+            auto bin_expr = m_allocator.emplace<node::BinExpr>();
+            auto expr_lhs = m_allocator.emplace<node::Expr>();
             if (operator_token.type == TokenType::PLUS) {
                 expr_lhs->var = expression->var;
 
                 auto expr_binary_addition =
-                    m_allocator.alloc<node::BinExprAddition>();
+                    m_allocator.emplace<node::BinExprAddition>();
                 expr_binary_addition->left = expr_lhs;
                 expr_binary_addition->right = expr_rhs.value();
 
@@ -216,7 +216,7 @@ class Parser {
                 expr_lhs->var = expression->var;
 
                 auto expr_binary_subtraction =
-                    m_allocator.alloc<node::BinExprSubtraction>();
+                    m_allocator.emplace<node::BinExprSubtraction>();
                 expr_binary_subtraction->left = expr_lhs;
                 expr_binary_subtraction->right = expr_rhs.value();
 
@@ -225,7 +225,7 @@ class Parser {
                 expr_lhs->var = expression->var;
 
                 auto expr_binary_division =
-                    m_allocator.alloc<node::BinExprDivision>();
+                    m_allocator.emplace<node::BinExprDivision>();
                 expr_binary_division->left = expr_lhs;
                 expr_binary_division->right = expr_rhs.value();
 
@@ -234,7 +234,7 @@ class Parser {
                 expr_lhs->var = expression->var;
 
                 auto expr_binary_multiplication =
-                    m_allocator.alloc<node::BinExprMultiplication>();
+                    m_allocator.emplace<node::BinExprMultiplication>();
                 expr_binary_multiplication->left = expr_lhs;
                 expr_binary_multiplication->right = expr_rhs.value();
 
@@ -255,7 +255,7 @@ class Parser {
             try_consume(TokenType::OPEN_PAREN, "Syntax error: expected (\n");
 
             node::IfPredElif* if_pred_elif =
-                m_allocator.alloc<node::IfPredElif>();
+                m_allocator.emplace<node::IfPredElif>();
 
             if (const auto node_expr = parse_expr()) {
                 if_pred_elif->condition = node_expr.value();
@@ -274,7 +274,7 @@ class Parser {
 
             if_pred_elif->next = parse_if_pred();
 
-            node::IfPred* if_pred = m_allocator.alloc<node::IfPred>();
+            node::IfPred* if_pred = m_allocator.emplace<node::IfPred>();
             if_pred->var = if_pred_elif;
             return if_pred;
         }
@@ -287,10 +287,10 @@ class Parser {
             }
 
             node::IfPredElse* if_pred_else =
-                m_allocator.alloc<node::IfPredElse>();
+                m_allocator.emplace<node::IfPredElse>();
             if_pred_else->scope = scope.value();
 
-            node::IfPred* if_pred = m_allocator.alloc<node::IfPred>();
+            node::IfPred* if_pred = m_allocator.emplace<node::IfPred>();
             if_pred->var = if_pred_else;
             return if_pred;
         }
@@ -300,7 +300,7 @@ class Parser {
 
     std::optional<node::Scope*> parse_scope() {
         if (try_consume(TokenType::OPEN_CURLY, "Syntax error: expected {\n")) {
-            node::Scope* scope = m_allocator.alloc<node::Scope>();
+            node::Scope* scope = m_allocator.emplace<node::Scope>();
 
             while (auto stmt = parse_stmt()) {
                 scope->statements.push_back(stmt.value());
@@ -320,7 +320,7 @@ class Parser {
             try_consume(TokenType::OPEN_PAREN, false, 1)) {
             consume();
             consume();
-            node::StmtExit* stmt_exit = m_allocator.alloc<node::StmtExit>();
+            node::StmtExit* stmt_exit = m_allocator.emplace<node::StmtExit>();
 
             if (const auto node_expr = parse_expr()) {
                 stmt_exit->expression = node_expr.value();
@@ -333,7 +333,7 @@ class Parser {
             try_consume(TokenType::CLOSE_PAREN, "Syntax error: expected )\n");
             try_consume(TokenType::END_OF_LINE, "Syntax error: expected ;\n");
 
-            node::Stmt* statement = m_allocator.alloc<node::Stmt>();
+            node::Stmt* statement = m_allocator.emplace<node::Stmt>();
             statement->var = stmt_exit;
             return statement;
         }
@@ -344,7 +344,7 @@ class Parser {
             consume();
             consume();
             node::StmtArg* statement_argument =
-                m_allocator.alloc<node::StmtArg>();
+                m_allocator.emplace<node::StmtArg>();
 
             if (const auto node_string_literal = parse_string_lit()) {
                 statement_argument->var = node_string_literal.value();
@@ -358,14 +358,14 @@ class Parser {
             try_consume(TokenType::CLOSE_PAREN, "Syntax error: expected )\n");
             try_consume(TokenType::END_OF_LINE, "Syntax error: expected ;\n");
 
-            node::Stmt* statement = m_allocator.alloc<node::Stmt>();
+            node::Stmt* statement = m_allocator.emplace<node::Stmt>();
             statement->var = statement_argument;
             return statement;
         }
 
         if (try_consume(TokenType::LET, false)) {
             consume();
-            node::StmtLet* statement_let = m_allocator.alloc<node::StmtLet>();
+            node::StmtLet* statement_let = m_allocator.emplace<node::StmtLet>();
 
             // Parse mutable
             if (try_consume(TokenType::MUT, false)) {
@@ -387,7 +387,7 @@ class Parser {
 
             try_consume(TokenType::END_OF_LINE, "Syntax error: expected ;\n");
 
-            node::Stmt* statement = m_allocator.alloc<node::Stmt>();
+            node::Stmt* statement = m_allocator.emplace<node::Stmt>();
             statement->var = statement_let;
             return statement;
         }
@@ -400,7 +400,7 @@ class Parser {
                 exit(EXIT_FAILURE);
             }
 
-            node::Stmt* statement = m_allocator.alloc<node::Stmt>();
+            node::Stmt* statement = m_allocator.emplace<node::Stmt>();
             statement->var = scope.value();
             return statement;
         }
@@ -410,7 +410,7 @@ class Parser {
             try_consume(TokenType::OPEN_PAREN, false, 1)) {
             consume();
             consume();
-            node::StmtIf* stmt_if = m_allocator.alloc<node::StmtIf>();
+            node::StmtIf* stmt_if = m_allocator.emplace<node::StmtIf>();
 
             auto node_expr = parse_expr();
             if (!node_expr.has_value()) {
@@ -430,7 +430,7 @@ class Parser {
 
             stmt_if->next = parse_if_pred();
 
-            node::Stmt* statement = m_allocator.alloc<node::Stmt>();
+            node::Stmt* statement = m_allocator.emplace<node::Stmt>();
             statement->var = stmt_if;
             return statement;
         }
