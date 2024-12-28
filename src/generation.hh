@@ -243,9 +243,9 @@ class Generator {
                     exit(EXIT_FAILURE);
                 }
 
-                gen.m_vars.push_back(Var{statement_let->identifier.value,
-                                         gen.m_stack_pointer,
-                                         gen.m_stack_scopes.size() - 1});
+                gen.m_vars.push_back(Var{
+                    statement_let->identifier.value, statement_let->is_mutable,
+                    gen.m_stack_pointer, gen.m_stack_scopes.size() - 1});
                 gen.gen_expr(statement_let->expression);
             }
 
@@ -464,6 +464,7 @@ class Generator {
     // Keeps track of the variable names
     struct Var {
         std::string name;
+        bool is_mutable;
         size_t stack_loc;
         size_t scope;
     };
