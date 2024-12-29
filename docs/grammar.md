@@ -7,7 +7,7 @@ $$
     \text{print}([\text{Arg}]); \\ % Print
     \text{let ident} = [\text{Expr}]; \\ % Let
     \text{let mut ident} = [\text{Expr}]; \\ % LetMut
-    \text{if} ([\text{Expr}]) [\text{Scope}] [\text{IfPred}] \\ % If
+    [\text{If}] \\ % If
     [\text{Scope}] \\ % Scope
 \end{cases} \\
 
@@ -18,10 +18,16 @@ $$
     [\text{String}] \\
 \end{cases} \\
 
-[\text{IfPred}] &\to \begin{cases}
-    \text{elif} ([\text{Expr}]) [\text{Scope}] [\text{IfPred}] \\
+[\text{If}] &\to \begin{cases}
+    \text{if} ([\text{Expr}]) [\text{Scope}] [\text{Elif}]^* [\text{Else}]? \\
+\end{cases} \\
+
+[\text{Elif}] &\to \begin{cases}
+    \text{elif} ([\text{Expr}]) [\text{Scope}] \\
+\end{cases} \\
+
+[\text{Else}] &\to \begin{cases}
     \text{else} [\text{Scope}] \\
-    \epsilon \\
 \end{cases} \\
 
 [\text{Expr}] &\to \begin{cases}

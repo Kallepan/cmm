@@ -116,36 +116,22 @@ class Generator {
         end_scope();
     }
 
-    void gen_if_predicate(const node::IfPred* pred,
-                          const std::string& end_jump_label) {
-        struct PredicateVisitor {
-            Generator& gen;
-            const std::string& end_jump_label;
+    void gen_elif_predicate(const node::ElifBranch* pred_elif,
+                            const std::string& end_jump_label) {
+        gen_expr(pred_elif->condition);
+        pop("rax");
+        const std::string label = create_label();
 
-            void operator()(const node::IfPredElif* pred_elif) const {
-                gen.gen_expr(pred_elif->condition);
-                gen.pop("rax");
-                const std::string label = gen.create_label();
+        m_start << "    test rax, rax\n";
+        m_start << "    jz " << label << "\n";
 
-                gen.m_start << "    test rax, rax\n";
-                gen.m_start << "    jz " << label << "\n";
+        gen_scope(pred_elif->scope);
+        m_start << "    jmp " << end_jump_label << "\n";
 
-                gen.gen_scope(pred_elif->scope);
-                gen.m_start << "    jmp " << end_jump_label << "\n";
-
-                gen.m_start << label << ":\n";
-                if (pred_elif->next.has_value()) {
-                    gen.gen_if_predicate(pred_elif->next.value(),
-                                         end_jump_label);
-                }
-            }
-
-            void operator()(const node::IfPredElse* pred_else) const {
-                gen.gen_scope(pred_else->scope);
-            }
-        };
-
-        std::visit(PredicateVisitor{*this, end_jump_label}, pred->var);
+        m_start << label << ":\n";
+    }
+    void gen_else_predicate(const node::ElseBranch* pred_else) {
+        gen_scope(pred_else->scope);
     }
 
     void gen_string_literal(const std::string string_literal) {
@@ -254,20 +240,24 @@ class Generator {
             }
 
             void operator()(const node::StmtIf* statement_if) const {
-                gen.gen_expr(statement_if->condition);
+                gen.gen_expr(statement_if->if_branch->condition);
                 gen.pop("rax");
                 const std::string label = gen.create_label();
 
                 gen.m_start << "    test rax, rax\n";
                 gen.m_start << "    jz " << label << "\n";
 
-                gen.gen_scope(statement_if->scope);
+                gen.gen_scope(statement_if->if_branch->scope);
                 const std::string end_label = gen.create_label();
                 gen.m_start << "    jmp " << end_label << "\n";
 
                 gen.m_start << label << ":\n";
-                if (statement_if->next.has_value()) {
-                    gen.gen_if_predicate(statement_if->next.value(), end_label);
+                for (const auto& elif_branch : statement_if->elif_branches) {
+                    gen.gen_elif_predicate(elif_branch, end_label);
+                }
+
+                if (statement_if->else_branch.has_value()) {
+                    gen.gen_else_predicate(statement_if->else_branch.value());
                 }
 
                 gen.m_start << end_label << ":\n";

@@ -80,26 +80,24 @@ struct Scope {
     std::vector<Stmt*> statements;
 };
 
-struct IfPred;
-
-struct IfPredElif {
+struct IfBranch {
     Expr* condition;
     Scope* scope;
-    std::optional<IfPred*> next;
 };
 
-struct IfPredElse {
+struct ElifBranch {
+    Expr* condition;
     Scope* scope;
 };
 
-struct IfPred {
-    std::variant<IfPredElif*, IfPredElse*> var;
+struct ElseBranch {
+    Scope* scope;
 };
 
 struct StmtIf {
-    Expr* condition;
-    Scope* scope;
-    std::optional<IfPred*> next;
+    IfBranch* if_branch;
+    std::vector<ElifBranch*> elif_branches;
+    std::optional<ElseBranch*> else_branch;
 };
 
 struct Stmt {
@@ -249,15 +247,33 @@ class Parser {
         return expression;
     }
 
-    std::optional<node::IfPred*> parse_if_pred() {
-        if (try_consume(TokenType::ELIF, true)) {
+    std::optional<node::ElseBranch*> parse_else() {
+        if (try_consume(TokenType::ELSE, true)) {
+            auto scope = parse_scope();
+            if (!scope.has_value()) {
+                std::cerr << "Syntax error: expected scope after else\n";
+                exit(EXIT_FAILURE);
+            }
+
+            node::ElseBranch* else_branch =
+                m_allocator.emplace<node::ElseBranch>();
+            else_branch->scope = scope.value();
+
+            return else_branch;
+        }
+
+        return std::nullopt;
+    }
+
+    std::vector<node::ElifBranch*> parse_elif() {
+        std::vector<node::ElifBranch*> branches;
+        while (try_consume(TokenType::ELIF, true)) {
             try_consume(TokenType::OPEN_PAREN, "Syntax error: expected (\n");
 
-            node::IfPredElif* if_pred_elif =
-                m_allocator.emplace<node::IfPredElif>();
-
+            node::ElifBranch* elif_branch =
+                m_allocator.emplace<node::ElifBranch>();
             if (const auto node_expr = parse_expr()) {
-                if_pred_elif->condition = node_expr.value();
+                elif_branch->condition = node_expr.value();
             } else {
                 std::cerr << "Syntax error: expected expression after elif\n";
                 exit(EXIT_FAILURE);
@@ -269,32 +285,12 @@ class Parser {
                 std::cerr << "Syntax error: expected scope after elif\n";
                 exit(EXIT_FAILURE);
             }
-            if_pred_elif->scope = scope.value();
+            elif_branch->scope = scope.value();
 
-            if_pred_elif->next = parse_if_pred();
-
-            node::IfPred* if_pred = m_allocator.emplace<node::IfPred>();
-            if_pred->var = if_pred_elif;
-            return if_pred;
+            branches.push_back(elif_branch);
         }
 
-        if (try_consume(TokenType::ELSE, true)) {
-            auto scope = parse_scope();
-            if (!scope.has_value()) {
-                std::cerr << "Syntax error: expected scope after else\n";
-                exit(EXIT_FAILURE);
-            }
-
-            node::IfPredElse* if_pred_else =
-                m_allocator.emplace<node::IfPredElse>();
-            if_pred_else->scope = scope.value();
-
-            node::IfPred* if_pred = m_allocator.emplace<node::IfPred>();
-            if_pred->var = if_pred_else;
-            return if_pred;
-        }
-
-        return std::nullopt;
+        return branches;
     }
 
     std::optional<node::Scope*> parse_scope() {
@@ -416,7 +412,8 @@ class Parser {
                 std::cerr << "Syntax error: expected expression after if\n";
                 exit(EXIT_FAILURE);
             }
-            stmt_if->condition = node_expr.value();
+            node::IfBranch* if_branch = m_allocator.emplace<node::IfBranch>();
+            if_branch->condition = node_expr.value();
 
             try_consume(TokenType::CLOSE_PAREN, "Syntax error: expected )\n");
 
@@ -425,9 +422,14 @@ class Parser {
                 std::cerr << "Syntax error: expected scope after if\n";
                 exit(EXIT_FAILURE);
             }
-            stmt_if->scope = scope.value();
+            if_branch->scope = scope.value();
+            stmt_if->if_branch = if_branch;
 
-            stmt_if->next = parse_if_pred();
+            stmt_if->elif_branches = parse_elif();
+
+            if (auto else_branch = parse_else()) {
+                stmt_if->else_branch = else_branch.value();
+            }
 
             node::Stmt* statement = m_allocator.emplace<node::Stmt>();
             statement->var = stmt_if;
