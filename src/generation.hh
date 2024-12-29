@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "config.hh"
+#include "error.hh"
 #include "parser.hh"
 
 class Generator {
@@ -32,8 +33,10 @@ class Generator {
                         return var.name == term_identifier->identifier.value;
                     });
                 if (iterator == gen.m_vars.cend()) {
-                    std::cerr << "Variable not declared: "
-                              << term_identifier->identifier.value << "\n";
+                    std::cerr << ErrorManager::get_error_message(
+                                     ErrorCode::VariableNotDeclared)
+                              << ": " << term_identifier->identifier.value
+                              << "\n";
                     exit(EXIT_FAILURE);
                 }
 
@@ -224,15 +227,47 @@ class Generator {
                                var.scope == gen.m_stack_scopes.size() - 1;
                     });
                 if (iterator != gen.m_vars.cend()) {
-                    std::cerr << "Variable already declared: "
-                              << statement_let->identifier.value << "\n";
-                    exit(EXIT_FAILURE);
+                    ErrorManager::error_expected(
+                        ErrorCode::VariableAlreadyDeclared,
+                        statement_let->identifier.line_number,
+                        statement_let->identifier.col_number);
                 }
 
                 gen.m_vars.push_back(Var{
                     statement_let->identifier.value, statement_let->is_mutable,
                     gen.m_stack_pointer, gen.m_stack_scopes.size() - 1});
                 gen.gen_expr(statement_let->expression);
+            }
+
+            void operator()(const node::StmtAssign* statement_assign) const {
+                // Check if the variable is declared by looking it up in the
+                // variable vector using find_if
+                const auto iterator = std::find_if(
+                    gen.m_vars.cbegin(), gen.m_vars.cend(),
+                    [&](const Var& var) {
+                        return var.name == statement_assign->identifier.value;
+                    });
+                if (iterator == gen.m_vars.cend()) {
+                    ErrorManager::error_expected(
+                        ErrorCode::VariableNotDeclared,
+                        statement_assign->identifier.line_number,
+                        statement_assign->identifier.col_number);
+                }
+
+                // Check if the variable is mutable
+                if (!iterator->is_mutable) {
+                    ErrorManager::error_expected(
+                        ErrorCode::VariableNotMutable,
+                        statement_assign->identifier.line_number,
+                        statement_assign->identifier.col_number);
+                }
+
+                gen.gen_expr(statement_assign->expression);
+                gen.pop("rax");
+                gen.m_start
+                    << "    mov QWORD [rsp + "
+                    << (gen.m_stack_pointer - iterator->stack_loc - 1) * 8
+                    << "], rax\n";
             }
 
             void operator()(const node::Scope* scope) const {

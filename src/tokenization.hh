@@ -6,11 +6,14 @@
 #include <vector>
 
 #include "config.hh"
+#include "error.hh"
 #include "token_type.hh"
 
 struct Token {
     TokenType type;
     std::string value;
+    size_t line_number;
+    size_t col_number;
 };
 
 class Tokenizer {
@@ -20,13 +23,6 @@ class Tokenizer {
     std::vector<Token> tokenize() {
         std::vector<Token> tokens;
         std::string token_buff;
-
-        // Helper function to consume characters while a condition is met
-        auto consume_while = [&](auto condition) {
-            while (peek().has_value() && condition(peek().value())) {
-                token_buff.push_back(consume());
-            }
-        };
 
         // Continue looking for tokens until the end of the source
         while (peek().has_value()) {
@@ -77,50 +73,60 @@ class Tokenizer {
             // Identifier
             if (std::isalpha(c)) {
                 token_buff.push_back(consume());
-                consume_while([](char c) { return std::isalnum(c); });
+                while (peek().has_value() && std::isalnum(peek().value())) {
+                    token_buff.push_back(consume());
+                }
 
                 // Handle keywords
                 if (token_buff == "exit") {
-                    tokens.push_back({TokenType::EXIT, token_buff});
+                    tokens.push_back({TokenType::EXIT, token_buff,
+                                      m_line_number, m_col_number});
                     token_buff.clear();
                     continue;
                 }
 
                 if (token_buff == "print") {
-                    tokens.push_back({TokenType::PRINT, token_buff});
+                    tokens.push_back({TokenType::PRINT, token_buff,
+                                      m_line_number, m_col_number});
                     token_buff.clear();
                     continue;
                 }
 
                 if (token_buff == "let") {
-                    tokens.push_back({TokenType::LET, token_buff});
+                    tokens.push_back({TokenType::LET, token_buff, m_line_number,
+                                      m_col_number});
                     token_buff.clear();
                     continue;
                 }
 
                 if (token_buff == "if") {
-                    tokens.push_back({TokenType::IF, token_buff});
+                    tokens.push_back({TokenType::IF, token_buff, m_line_number,
+                                      m_col_number});
                     token_buff.clear();
                     continue;
                 }
                 if (token_buff == "elif") {
-                    tokens.push_back({TokenType::ELIF, token_buff});
+                    tokens.push_back({TokenType::ELIF, token_buff,
+                                      m_line_number, m_col_number});
                     token_buff.clear();
                     continue;
                 }
                 if (token_buff == "else") {
-                    tokens.push_back({TokenType::ELSE, token_buff});
+                    tokens.push_back({TokenType::ELSE, token_buff,
+                                      m_line_number, m_col_number});
                     token_buff.clear();
                     continue;
                 }
 
                 if (token_buff == "mut") {
-                    tokens.push_back({TokenType::MUT, token_buff});
+                    tokens.push_back({TokenType::MUT, token_buff, m_line_number,
+                                      m_col_number});
                     token_buff.clear();
                     continue;
                 }
 
-                tokens.push_back({TokenType::IDENT, token_buff});
+                tokens.push_back({TokenType::IDENT, token_buff, m_line_number,
+                                  m_col_number});
                 token_buff.clear();
                 continue;
             }
@@ -141,7 +147,8 @@ class Tokenizer {
                     token_buff.push_back(consume());
                 }
 
-                tokens.push_back({TokenType::INT_LIT, token_buff});
+                tokens.push_back({TokenType::INT_LIT, token_buff, m_line_number,
+                                  m_col_number});
                 token_buff.clear();
                 continue;
             }
@@ -167,11 +174,13 @@ class Tokenizer {
                 }
                 consume();
                 if (token_buff.size() > MAX_STRING_SIZE) {
-                    std::cerr << "String too long at column: " << m_col_number
-                              << " at line: " << m_line_number << "\n";
+                    std::cerr << ErrorManager::construct_error_message(
+                        ErrorCode::StringTooLong, m_line_number, m_col_number);
+
                     exit(EXIT_FAILURE);
                 }
-                tokens.push_back({TokenType::STRING_LIT, token_buff});
+                tokens.push_back({TokenType::STRING_LIT, token_buff,
+                                  m_line_number, m_col_number});
                 token_buff.clear();
                 continue;
             }
@@ -179,70 +188,80 @@ class Tokenizer {
             // Handle operators
             if (c == '(') {
                 consume();
-                tokens.push_back({TokenType::OPEN_PAREN, "("});
+                tokens.push_back(
+                    {TokenType::OPEN_PAREN, "(", m_line_number, m_col_number});
                 continue;
             }
             if (c == ')') {
                 consume();
-                tokens.push_back({TokenType::CLOSE_PAREN, ")"});
+                tokens.push_back(
+                    {TokenType::CLOSE_PAREN, ")", m_line_number, m_col_number});
                 continue;
             }
             if (c == '=') {
                 consume();
-                tokens.push_back({TokenType::EQ, "="});
+                tokens.push_back(
+                    {TokenType::EQ, "=", m_line_number, m_col_number});
                 continue;
             }
             if (c == '+') {
                 consume();
-                tokens.push_back({TokenType::PLUS, "+"});
+                tokens.push_back(
+                    {TokenType::PLUS, "+", m_line_number, m_col_number});
                 continue;
             }
             if (c == '-') {
                 consume();
-                tokens.push_back({TokenType::MINUS, "-"});
+                tokens.push_back(
+                    {TokenType::MINUS, "-", m_line_number, m_col_number});
                 continue;
             }
             if (c == '*') {
                 consume();
-                tokens.push_back({TokenType::STAR, "*"});
+                tokens.push_back(
+                    {TokenType::STAR, "*", m_line_number, m_col_number});
                 continue;
             }
             if (c == '/') {
                 consume();
-                tokens.push_back({TokenType::FORWARD_SLASH, "/"});
+                tokens.push_back({TokenType::FORWARD_SLASH, "/", m_line_number,
+                                  m_col_number});
                 continue;
             }
 
             // Handle braces
             if (c == '{') {
                 consume();
-                tokens.push_back({TokenType::OPEN_CURLY, "{"});
+                tokens.push_back(
+                    {TokenType::OPEN_CURLY, "{", m_line_number, m_col_number});
                 continue;
             }
             if (c == '}') {
                 consume();
-                tokens.push_back({TokenType::CLOSE_CURLY, "}"});
+                tokens.push_back(
+                    {TokenType::CLOSE_CURLY, "}", m_line_number, m_col_number});
                 continue;
             }
 
             // Semicolon, end of line
             if (c == ';') {
                 consume();
-                tokens.push_back({TokenType::END_OF_LINE, ";"});
+                tokens.push_back(
+                    {TokenType::END_OF_LINE, ";", m_line_number, m_col_number});
                 continue;
             }
 
             // Syntax error, no token found
-            std::cerr << "Syntax error: " << peek().value()
-                      << " at column: " << m_col_number
-                      << " at line: " << m_line_number << "\n";
+            std::cerr << ErrorManager::construct_error_message(
+                ErrorCode::UnidentifiedToken, m_line_number, m_col_number);
             exit(EXIT_FAILURE);
         }
 
 #ifdef DEBUG
         for (const auto& token : tokens) {
-            std::cout << "Token: " << token.type << ", Value: " << token.value
-                      << "\n";
+            std::cout << "Token: " << token.type << ", Value: `" << token.value
+                      << "`, Line: " << token.line_number
+                      << ", Column: " << token.col_number << "\n";
         }
 
         std::cout << "Tokenization complete\n"

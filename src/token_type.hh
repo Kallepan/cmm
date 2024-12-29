@@ -35,54 +35,54 @@ enum class TokenType {
 constexpr const char* toString(TokenType tokenType) {
     switch (tokenType) {
         case TokenType::STRING_LIT:
-            return "STRING_LIT";
+            return "String Literal";
         case TokenType::INT_LIT:
-            return "INT_LIT";
+            return "Integer Literal";
         case TokenType::IDENT:
-            return "IDENT";
+            return "Identifier";
 
         case TokenType::LET:
-            return "LET";
+            return "`let`";
         case TokenType::MUT:
-            return "MUT";
+            return "`mut`";
 
         case TokenType::EXIT:
-            return "EXIT";
+            return "`exit`";
         case TokenType::PRINT:
-            return "PRINT";
+            return "`print`";
 
         case TokenType::OPEN_PAREN:
-            return "OPEN_PARENTHESES";
+            return "`(`";
         case TokenType::CLOSE_PAREN:
-            return "CLOSE_PARENTHESIS";
-        case TokenType::EQ:
-            return "EQUALS";
-        case TokenType::PLUS:
-            return "PLUS";
-        case TokenType::MINUS:
-            return "MINUS";
-        case TokenType::STAR:
-            return "STAR";
-        case TokenType::FORWARD_SLASH:
-            return "FORWARD_SLASH";
-
+            return "`)`";
         case TokenType::OPEN_CURLY:
-            return "OPEN_CURLY";
+            return "`{`";
         case TokenType::CLOSE_CURLY:
-            return "CLOSE_CURLY";
+            return "`}`";
+
+        case TokenType::EQ:
+            return "`=`";
+        case TokenType::PLUS:
+            return "`+`";
+        case TokenType::MINUS:
+            return "`-`";
+        case TokenType::STAR:
+            return "`*`";
+        case TokenType::FORWARD_SLASH:
+            return "`/`";
 
         case TokenType::IF:
-            return "IF";
+            return "`if`";
         case TokenType::ELIF:
-            return "ELIF";
+            return "`elif`";
         case TokenType::ELSE:
-            return "ELSE";
+            return "`else`";
 
         case TokenType::END_OF_LINE:
-            return "END_OF_LINE";
+            return "`;`";
 
         default:
-            return "UNKNOWN";
+            return "Unknown";
     }
 }
 
@@ -97,7 +97,7 @@ inline std::ostream& operator<<(std::ostream& os, TokenType tokenType) {
 /**
  * @brief Check if a token has a unary precedence
  */
-inline std::optional<size_t> bin_prec(const TokenType tokenType) {
+inline std::optional<size_t> binary_precedence(const TokenType tokenType) {
     switch (tokenType) {
         case TokenType::PLUS:
         case TokenType::MINUS:

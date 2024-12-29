@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "error.hh"
 #include "generation.hh"
 #include "parser.hh"
 #include "token_type.hh"
