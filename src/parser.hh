@@ -100,8 +100,14 @@ struct StmtIf {
     std::optional<ElseBranch*> else_branch;
 };
 
+struct StmtAssign {
+    Token identifier;
+    Expr* expression;
+};
+
 struct Stmt {
-    std::variant<StmtExit*, StmtArg*, StmtLet*, Scope*, StmtIf*> var;
+    std::variant<StmtExit*, StmtArg*, StmtLet*, Scope*, StmtIf*, StmtAssign*>
+        var;
 };
 
 struct Prog {
@@ -137,16 +143,15 @@ class Parser {
 
         if (auto open_paren = try_consume(TokenType::OPEN_PAREN)) {
             auto term_paren = m_allocator.emplace<node::TermParen>();
-            auto expr = parse_expr();
 
-            if (!expr.has_value()) {
-                std::cerr << "Syntax error: expected expression after (\n";
-                exit(EXIT_FAILURE);
+            if (const auto expression = parse_expr()) {
+                term_paren->expression = expression.value();
+            } else {
+                error_expected(ErrorCode::ExpectedExpression);
             }
 
-            term_paren->expression = expr.value();
-
-            try_consume(TokenType::CLOSE_PAREN, "Syntax error: expected )\n");
+            try_consume(TokenType::CLOSE_PAREN,
+                        ErrorCode::ExpectedCloseParenthesis);
 
             auto term = m_allocator.emplace<node::Term>();
             term->var = term_paren;
@@ -183,7 +188,8 @@ class Parser {
                 break;
             }
 
-            std::optional<size_t> precedence = bin_prec(next_token->type);
+            std::optional<size_t> precedence =
+                binary_precedence(next_token->type);
             if (!precedence.has_value() ||
                 precedence.value() < minimum_precedence) {
                 break;
@@ -193,9 +199,7 @@ class Parser {
             const size_t next_minimum_precedence = precedence.value() + 1;
             auto expr_rhs = parse_expr(next_minimum_precedence);
             if (!expr_rhs.has_value()) {
-                std::cerr
-                    << "Syntax error: expected expression after operator\n";
-                exit(EXIT_FAILURE);
+                error_expected(ErrorCode::ExpectedExpression);
             }
 
             auto bin_expr = m_allocator.emplace<node::BinExpr>();
@@ -237,8 +241,7 @@ class Parser {
 
                 bin_expr->var = expr_binary_multiplication;
             } else {
-                std::cerr << "Syntax error: unknown operator\n";
-                exit(EXIT_FAILURE);
+                error_expected(ErrorCode::UnknownOperator);
             }
 
             expression->var = bin_expr;
@@ -251,8 +254,7 @@ class Parser {
         if (try_consume(TokenType::ELSE, true)) {
             auto scope = parse_scope();
             if (!scope.has_value()) {
-                std::cerr << "Syntax error: expected scope after else\n";
-                exit(EXIT_FAILURE);
+                error_expected(ErrorCode::ExpectedScope);
             }
 
             node::ElseBranch* else_branch =
@@ -268,22 +270,22 @@ class Parser {
     std::vector<node::ElifBranch*> parse_elif() {
         std::vector<node::ElifBranch*> branches;
         while (try_consume(TokenType::ELIF, true)) {
-            try_consume(TokenType::OPEN_PAREN, "Syntax error: expected (\n");
+            try_consume(TokenType::OPEN_PAREN,
+                        ErrorCode::ExpectedOpenParenthesis);
 
             node::ElifBranch* elif_branch =
                 m_allocator.emplace<node::ElifBranch>();
-            if (const auto node_expr = parse_expr()) {
-                elif_branch->condition = node_expr.value();
+            if (const auto expression = parse_expr()) {
+                elif_branch->condition = expression.value();
             } else {
-                std::cerr << "Syntax error: expected expression after elif\n";
-                exit(EXIT_FAILURE);
+                error_expected(ErrorCode::ExpectedExpression);
             }
-            try_consume(TokenType::CLOSE_PAREN, "Syntax error: expected )\n");
+            try_consume(TokenType::CLOSE_PAREN,
+                        ErrorCode::ExpectedCloseParenthesis);
 
             auto scope = parse_scope();
             if (!scope.has_value()) {
-                std::cerr << "Syntax error: expected scope after elif\n";
-                exit(EXIT_FAILURE);
+                error_expected(ErrorCode::ExpectedScope);
             }
             elif_branch->scope = scope.value();
 
@@ -294,14 +296,15 @@ class Parser {
     }
 
     std::optional<node::Scope*> parse_scope() {
-        if (try_consume(TokenType::OPEN_CURLY, "Syntax error: expected {\n")) {
+        if (try_consume(TokenType::OPEN_CURLY, false)) {
+            consume();
             node::Scope* scope = m_allocator.emplace<node::Scope>();
 
             while (auto stmt = parse_stmt()) {
                 scope->statements.push_back(stmt.value());
             }
 
-            try_consume(TokenType::CLOSE_CURLY, "Syntax error: expected }\n");
+            try_consume(TokenType::CLOSE_CURLY, ErrorCode::ExpectedCloseCurly);
 
             return scope;
         }
@@ -317,16 +320,15 @@ class Parser {
             consume();
             node::StmtExit* stmt_exit = m_allocator.emplace<node::StmtExit>();
 
-            if (const auto node_expr = parse_expr()) {
-                stmt_exit->expression = node_expr.value();
+            if (const auto expression = parse_expr()) {
+                stmt_exit->expression = expression.value();
             } else {
-                std::cerr << "Syntax error: expected integer literal after exit"
-                          << "\n";
-                exit(EXIT_FAILURE);
+                error_expected(ErrorCode::ExpectedExpression);
             }
 
-            try_consume(TokenType::CLOSE_PAREN, "Syntax error: expected )\n");
-            try_consume(TokenType::END_OF_LINE, "Syntax error: expected ;\n");
+            try_consume(TokenType::CLOSE_PAREN,
+                        ErrorCode::ExpectedCloseParenthesis);
+            try_consume(TokenType::END_OF_LINE, ErrorCode::ExpectedEndOfLine);
 
             node::Stmt* statement = m_allocator.emplace<node::Stmt>();
             statement->var = stmt_exit;
@@ -343,15 +345,15 @@ class Parser {
 
             if (const auto node_string_literal = parse_string_lit()) {
                 statement_argument->var = node_string_literal.value();
-            } else if (const auto node_expr = parse_expr()) {
-                statement_argument->var = node_expr.value();
+            } else if (const auto expression = parse_expr()) {
+                statement_argument->var = expression.value();
             } else {
-                std::cerr << "Syntax error: expected expression after print\n";
-                exit(EXIT_FAILURE);
+                error_expected(ErrorCode::ExpectedExpression);
             }
 
-            try_consume(TokenType::CLOSE_PAREN, "Syntax error: expected )\n");
-            try_consume(TokenType::END_OF_LINE, "Syntax error: expected ;\n");
+            try_consume(TokenType::CLOSE_PAREN,
+                        ErrorCode::ExpectedCloseParenthesis);
+            try_consume(TokenType::END_OF_LINE, ErrorCode::ExpectedEndOfLine);
 
             node::Stmt* statement = m_allocator.emplace<node::Stmt>();
             statement->var = statement_argument;
@@ -372,27 +374,46 @@ class Parser {
             consume();
 
             // Parse expression
-            if (const auto node_expr = parse_expr()) {
-                statement_let->expression = node_expr.value();
+            if (const auto expression = parse_expr()) {
+                statement_let->expression = expression.value();
             } else {
-                std::cerr
-                    << "Syntax error: expected integer literal after let\n";
-                exit(EXIT_FAILURE);
+                error_expected(ErrorCode::ExpectedExpression);
             }
 
-            try_consume(TokenType::END_OF_LINE, "Syntax error: expected ;\n");
+            try_consume(TokenType::END_OF_LINE, ErrorCode::ExpectedEndOfLine);
 
             node::Stmt* statement = m_allocator.emplace<node::Stmt>();
             statement->var = statement_let;
             return statement;
         }
 
-        // Parse scope statement
+        // Assign statement
+        if (try_consume(TokenType::IDENT, false) &&
+            try_consume(TokenType::EQ, false, 1)) {
+            auto identifier = consume();
+            consume();
+            node::StmtAssign* statement_assign =
+                m_allocator.emplace<node::StmtAssign>();
+            statement_assign->identifier = identifier;
+
+            if (const auto expression = parse_expr()) {
+                statement_assign->expression = expression.value();
+            } else {
+                error_expected(ErrorCode::ExpectedExpression);
+            }
+
+            try_consume(TokenType::END_OF_LINE, ErrorCode::ExpectedEndOfLine);
+
+            node::Stmt* statement = m_allocator.emplace<node::Stmt>();
+            statement->var = statement_assign;
+            return statement;
+        }
+
+        // Parse scope
         if (try_consume(TokenType::OPEN_CURLY, false)) {
             auto scope = parse_scope();
             if (!scope.has_value()) {
-                std::cerr << "Syntax error: expected statement\n";
-                exit(EXIT_FAILURE);
+                error_expected(ErrorCode::ExpectedScope);
             }
 
             node::Stmt* statement = m_allocator.emplace<node::Stmt>();
@@ -407,20 +428,19 @@ class Parser {
             consume();
             node::StmtIf* stmt_if = m_allocator.emplace<node::StmtIf>();
 
-            auto node_expr = parse_expr();
-            if (!node_expr.has_value()) {
-                std::cerr << "Syntax error: expected expression after if\n";
-                exit(EXIT_FAILURE);
+            auto expression = parse_expr();
+            if (!expression.has_value()) {
+                error_expected(ErrorCode::ExpectedExpression);
             }
             node::IfBranch* if_branch = m_allocator.emplace<node::IfBranch>();
-            if_branch->condition = node_expr.value();
+            if_branch->condition = expression.value();
 
-            try_consume(TokenType::CLOSE_PAREN, "Syntax error: expected )\n");
+            try_consume(TokenType::CLOSE_PAREN,
+                        ErrorCode::ExpectedCloseParenthesis);
 
             auto scope = parse_scope();
             if (!scope.has_value()) {
-                std::cerr << "Syntax error: expected scope after if\n";
-                exit(EXIT_FAILURE);
+                error_expected(ErrorCode::ExpectedScope);
             }
             if_branch->scope = scope.value();
             stmt_if->if_branch = if_branch;
@@ -445,8 +465,7 @@ class Parser {
             if (const auto statement = parse_stmt()) {
                 prog.statements.push_back(statement.value());
             } else {
-                std::cerr << "Syntax error: expected statement\n";
-                exit(EXIT_FAILURE);
+                error_expected(ErrorCode::InvalidProgram);
             }
         }
 
@@ -464,13 +483,20 @@ class Parser {
 
     Token consume() { return m_tokens.at(m_index++); }
 
-    Token try_consume(const TokenType type, const std::string& error_message) {
+    void error_expected(const ErrorCode error_code) const {
+        std::cerr << ErrorManager::construct_error_message(
+            error_code, peek()->line_number, peek()->col_number);
+        exit(EXIT_FAILURE);
+    }
+
+    Token try_consume(const TokenType type, const ErrorCode error_code) {
         auto lexme = peek();
         if (lexme.has_value() && lexme.value().type == type) {
             return consume();
         }
 
-        std::cerr << error_message << "\n";
+        std::cerr << ErrorManager::construct_error_message(
+            error_code, lexme->line_number, lexme->col_number);
         exit(EXIT_FAILURE);
     }
 

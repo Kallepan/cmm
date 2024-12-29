@@ -7,6 +7,7 @@ $$
     \text{print}([\text{Arg}]); \\ % Print
     \text{let ident} = [\text{Expr}]; \\ % Let
     \text{let mut ident} = [\text{Expr}]; \\ % LetMut
+    \text{ident = [\text{Expr}];} \\ % Assign
     [\text{If}] \\ % If
     [\text{Scope}] \\ % Scope
 \end{cases} \\
